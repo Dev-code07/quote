@@ -1,13 +1,10 @@
 @use('App\Support\Money')
 
 <x-app-layout title="Quotations">
-    <x-slot name="headerActions">
-        <x-button :href="route('quotes.create')">+ New Quotation</x-button>
-    </x-slot>
-
     <x-section-header title="Quotations" description="Create, track and export quotations.">
         <x-slot name="actions">
             <a href="{{ route('quotes.trash') }}" class="text-[13px] font-medium text-app-muted hover:text-app-text">Trash</a>
+            <x-button :href="route('quotes.create')" icon="plus">New Quotation</x-button>
         </x-slot>
     </x-section-header>
 

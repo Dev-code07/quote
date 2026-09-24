@@ -1,11 +1,11 @@
 <x-app-layout title="Clients">
-    <x-slot name="headerActions">
-        <x-button type="button" x-on:click="$dispatch('open-modal', 'client-form')" icon="plus">
-            Add Client
-        </x-button>
-    </x-slot>
-
-    <x-section-header title="Clients" description="Customers you send quotations to." />
+    <x-section-header title="Clients" description="Customers you send quotations to.">
+        <x-slot name="actions">
+            <x-button type="button" x-on:click="$dispatch('open-modal', 'client-form')" icon="plus">
+                Add Client
+            </x-button>
+        </x-slot>
+    </x-section-header>
 
     {{-- Filters --}}
     <x-card class="mb-4">

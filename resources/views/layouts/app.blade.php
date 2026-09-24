@@ -25,7 +25,7 @@
                 x-transition:leave-start="opacity-100"
                 x-transition:leave-end="opacity-0"
                 x-on:click="open = false"
-                class="fixed inset-0 z-40 hidden bg-app-text/35 max-[900px]:block"
+                class="fixed inset-0 z-[55] hidden bg-app-text/35 max-[900px]:block"
                 aria-hidden="true"
             ></div>
 
@@ -41,18 +41,24 @@
                 :class="open ? 'translate-x-0' : '-translate-x-full min-[901px]:translate-x-0'"
                 :aria-hidden="open ? null : (window.matchMedia('(min-width: 901px)').matches ? null : 'true')"
             >
-                <div class="flex h-16 items-center gap-2.5 border-b border-app-border px-5">
-                    <span class="flex size-8 items-center justify-center rounded-[8px] bg-app-accent text-sm font-bold text-white" aria-hidden="true">Q</span>
-                    <span class="text-[15px] font-bold tracking-tight">{{ config('app.name', 'QuoteFlow') }}</span>
+                <div class="flex items-center gap-2.5 border-b border-app-border py-[18px] pl-5 pr-5">
+                    <span class="flex size-[30px] shrink-0 items-center justify-center rounded-[7px] bg-app-accent text-white" aria-hidden="true">
+                        <x-icon name="file-text" size="16" />
+                    </span>
+                    <span class="text-[16px] font-bold tracking-[-0.2px] text-app-text">
+                        {{ \Illuminate\Support\Str::before(config('app.name', 'QuoteFlow'), 'Flow') }}<span class="text-app-accent">Flow</span>
+                    </span>
                 </div>
 
-                <nav class="flex-1 space-y-1 overflow-y-auto p-3" aria-label="Main navigation">
+                <nav class="flex-1 overflow-y-auto py-2" aria-label="Main navigation">
+                    <div class="px-[10px] pb-1.5 pt-2 text-[11px] uppercase tracking-[0.06em] text-app-faint">Main</div>
+
                     @php
                         $items = [
-                            ['route' => 'dashboard', 'label' => 'Dashboard', 'pattern' => 'dashboard', 'icon' => '<path d="M3 3h7v7H3z"/><path d="M14 3h7v7h-7z"/><path d="M14 14h7v7h-7z"/><path d="M3 14h7v7H3z"/>'],
-                            ['route' => 'clients.index', 'label' => 'Clients', 'pattern' => 'clients.*', 'icon' => '<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/>'],
-                            ['route' => 'templates.index', 'label' => 'Templates', 'pattern' => 'templates.*', 'icon' => '<rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/>'],
-                            ['route' => 'quotes.index', 'label' => 'Quotes', 'pattern' => 'quotes.*', 'icon' => '<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><path d="M8 13h8M8 17h5"/>'],
+                            ['route' => 'dashboard', 'label' => 'Dashboard', 'pattern' => 'dashboard', 'icon' => 'layout'],
+                            ['route' => 'clients.index', 'label' => 'Clients', 'pattern' => 'clients.*', 'icon' => 'users'],
+                            ['route' => 'templates.index', 'label' => 'Templates', 'pattern' => 'templates.*', 'icon' => 'table'],
+                            ['route' => 'quotes.index', 'label' => 'Quotes', 'pattern' => 'quotes.*', 'icon' => 'file-text', 'badge' => $quoteCount ?? null],
                         ];
                     @endphp
 
@@ -61,27 +67,38 @@
                         <a
                             href="{{ route($item['route']) }}"
                             @if ($active) aria-current="page" @endif
-                            class="flex items-center gap-2.5 rounded-[8px] px-3 py-2 text-[13.5px] font-medium transition-colors {{ $active ? 'bg-app-accent-soft text-app-accent' : 'text-app-muted hover:bg-app-neutral-soft hover:text-app-text' }}"
+                            class="mb-0.5 flex items-center gap-2.5 rounded-[6px] py-[9px] pl-[10px] pr-[10px] text-sm font-medium transition-colors {{ $active ? 'bg-app-accent-soft font-semibold text-app-accent' : 'text-app-muted hover:bg-app-neutral-soft hover:text-app-text' }}"
                         >
-                            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">{!! $item['icon'] !!}</svg>
+                            <x-icon :name="$item['icon']" size="17" class="shrink-0" :stroke-width="1.8" />
                             {{ $item['label'] }}
+                            @if (! empty($item['badge']))
+                                <span class="ml-auto rounded-full bg-app-accent-soft px-[7px] py-px text-[11px] font-semibold text-app-accent">{{ $item['badge'] }}</span>
+                            @endif
                         </a>
                     @endforeach
                 </nav>
 
-                <div class="border-t border-app-border p-3">
-                    <div class="flex items-center gap-2.5 rounded-[8px] px-2 py-2">
-                        <span class="flex size-8 shrink-0 items-center justify-center rounded-full bg-app-neutral-soft text-xs font-bold text-app-muted" aria-hidden="true">
+                <div class="border-t border-app-border pb-3.5 pl-3 pr-3 pt-2.5">
+                    <a
+                        href="{{ route('profile.edit') }}"
+                        class="mb-0.5 flex items-center gap-2.5 rounded-[6px] py-[9px] pl-[10px] pr-[10px] text-sm font-medium text-app-muted transition-colors hover:bg-app-neutral-soft hover:text-app-text"
+                    >
+                        <x-icon name="settings" size="17" class="shrink-0" :stroke-width="1.8" />
+                        Settings
+                    </a>
+
+                    <div class="mt-1 flex items-center gap-2.5 rounded-[6px] py-2 pl-[10px] pr-2.5">
+                        <span class="flex size-8 shrink-0 items-center justify-center rounded-full bg-[#1e40af] text-xs font-semibold text-white" aria-hidden="true">
                             {{ strtoupper(substr(auth()->user()->name ?? 'A', 0, 1)) }}
                         </span>
                         <div class="min-w-0 flex-1">
                             <p class="truncate text-[13px] font-semibold">{{ auth()->user()->name }}</p>
-                            <p class="truncate text-xs text-app-faint">Administrator</p>
+                            <p class="truncate text-[11px] text-app-faint">Administrator</p>
                         </div>
                         <form method="POST" action="{{ route('logout') }}">
                             @csrf
                             <button type="submit" class="rounded-[6px] p-1.5 text-app-faint transition-colors hover:bg-app-neutral-soft hover:text-app-danger" title="Log out" aria-label="Log out">
-                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+                                <x-icon name="log-out" size="16" :stroke-width="1.8" />
                             </button>
                         </form>
                     </div>
@@ -90,24 +107,54 @@
 
             {{-- Main column --}}
             <div class="min-h-screen min-[901px]:pl-[232px]">
-                <header class="sticky top-0 z-30 flex h-16 items-center gap-3 border-b border-app-border bg-app-surface px-5">
+                <header class="sticky top-0 z-50 flex h-[60px] items-center gap-3.5 border-b border-app-border bg-app-surface px-7">
                     <button
                         type="button"
                         x-on:click="open = true"
-                        class="-ml-1 rounded-[6px] p-2 text-app-muted hover:bg-app-neutral-soft max-[900px]:inline-flex hidden"
+                        class="hidden size-9 shrink-0 items-center justify-center rounded-[6px] border border-app-border text-app-muted transition-colors hover:bg-app-neutral-soft hover:text-app-text max-[900px]:inline-flex"
                         aria-label="Open navigation menu"
                     >
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+                        <x-icon name="menu" size="18" />
                     </button>
 
-                    <h1 class="text-[15px] font-bold">{{ $title ?? config('app.name', 'QuoteFlow') }}</h1>
+                    {{-- Global search (prototype .topbar-search: flex 0 1 340px) --}}
+                    <form method="GET" action="{{ route('search') }}" role="search" class="relative hidden w-full max-w-[340px] text-app-faint max-[900px]:block">
+                        <x-icon name="search" size="15" class="pointer-events-none absolute left-[11px] top-1/2 -translate-y-1/2" />
+                        <input
+                            type="search"
+                            name="q"
+                            value="{{ request('q') }}"
+                            placeholder="Search quotes, clients..."
+                            aria-label="Search quotes and clients"
+                            class="w-full rounded-[6px] border border-app-border bg-app-bg py-2 pl-[34px] pr-3 text-[13px] text-app-text outline-none transition-colors placeholder:text-app-faint focus:border-app-accent focus:bg-white focus:outline-2 focus:outline-offset-0 focus:outline-[rgba(37,99,235,0.25)]"
+                        />
+                    </form>
 
-                    <div class="ml-auto flex items-center gap-2">
-                        {{ $headerActions ?? '' }}
+                    <div class="ml-auto flex items-center gap-2.5">
+                        {{-- Notifications --}}
+                        <button
+                            type="button"
+                            class="relative flex size-9 items-center justify-center rounded-[6px] border border-app-border bg-white text-app-muted transition-colors hover:bg-app-neutral-soft hover:text-app-text"
+                            title="Notifications"
+                            aria-label="Notifications"
+                        >
+                            <x-icon name="bell" size="17" :stroke-width="1.8" />
+                            <span class="absolute right-2 top-[7px] size-[7px] rounded-full border-[1.5px] border-white bg-app-danger"></span>
+                        </button>
+
+                        {{-- Info / help --}}
+                        <button
+                            type="button"
+                            class="flex size-9 items-center justify-center rounded-[6px] border border-app-border bg-white text-app-muted transition-colors hover:bg-app-neutral-soft hover:text-app-text"
+                            title="Help"
+                            aria-label="Help"
+                        >
+                            <x-icon name="help-circle" size="17" :stroke-width="1.8" />
+                        </button>
                     </div>
                 </header>
 
-                <main class="p-5">
+                <main class="p-7">
                     {{ $slot }}
                 </main>
 
