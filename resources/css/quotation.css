@@ -21,6 +21,44 @@
    Accent colours arrive as CSS custom properties set per template.
    ========================================================================== */
 
+.q-sheet,
+.q-sheet *,
+.q-sheet *::before,
+.q-sheet *::after {
+    /* The screen preview inherits Tailwind's preflight (border-box); the PDF
+       gets this file alone. Declaring it here keeps box metrics identical. */
+    box-sizing: border-box;
+}
+
+/* User-agent margin reset.
+   The preview inherits Tailwind's preflight, which zeroes margins on <p>, <h*>
+   and friends. The PDF is rendered from this file with no preflight, so the
+   browser default (1em top and bottom on <p>) applied there and nowhere else:
+   the client address and salutation paragraphs each gained ~3.3mm, pushing
+   the closing block off the page. Declaring the same reset here makes the two
+   renderings agree. Only elements inside the sheet are affected. */
+.q-sheet p,
+.q-sheet h1,
+.q-sheet h2,
+.q-sheet h3,
+.q-sheet h4,
+.q-sheet ul,
+.q-sheet ol,
+.q-sheet dl,
+.q-sheet dd,
+.q-sheet figure {
+    margin: 0;
+    padding: 0;
+}
+
+/* Line heights are absolute (pt), never unitless multipliers.
+   Dompdf largely ignores a multiplier and falls back to the font's natural
+   line box, which for Hind is roughly 3em: every table row came out ~1.5x
+   taller in the PDF than in the browser, and the closing block was pushed
+   onto a second page. Measured with resources/views/pdf/quote.blade.php:
+     line-height: 1.45  -> 11.23mm row
+     line-height: 18.13pt -> 9.83mm row  (honoured)
+   Stating the same values in pt makes both engines agree. 1px = 0.75pt. */
 .q-sheet {
     --ink: #1f2f6b;
     --ink-2: #3b4a82;
@@ -37,44 +75,107 @@
     box-shadow: 0 1px 2px rgb(15 23 42 / 0.08), 0 12px 32px rgb(15 23 42 / 0.16);
     font-family: 'Hind', 'Segoe UI', Arial, sans-serif;
     font-size: 13px;
-    line-height: 1.45;
+    /* 1.45 x 13px = 18.85px = 14.14pt */
+    line-height: 14.14pt;
     color: var(--paper-text);
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
 }
 
+/* The frame is a TABLE, not a flex column.
+   Dompdf maps `display: flex` to `display: block` (Css/Style.php::_compute_display),
+   which stacked every band vertically in the PDF. CSS tables are supported by
+   both engines and lay out identically, so the sheet now uses tables for all
+   of its horizontal structure. The height is fixed (not min-height) so the
+   footer row is pushed to the foot of the page exactly as the prototype does. */
 .q-frame {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
+    /* Real <table> markup: Dompdf only lays out genuine table rows inside a
+       genuine table. A styled <div> silently falls back to block formatting
+       and the bands drift down the page. */
+    width: 184mm;
+    /* 297mm sheet - 2x9mm sheet padding - 2x4px frame margin - 2x2px border.
+       A real height, not min-height: the footer must sit at the foot of the
+       frame so the preview and the PDF agree page-for-page. */
+    height: 275.6mm;
     border: 2px solid var(--ink);
+    border-collapse: separate;
+    border-spacing: 0;
     outline: 1px solid var(--ink);
     outline-offset: 3px;
     margin: 4px;
 }
 
-.q-flow { flex: 1; display: flex; flex-direction: column; }
+/* The single cell holds the whole page. Its content is top-aligned; the fixed
+   frame height does the rest. */
+.q-flow {
+    padding: 0;
+    border: none;
+    vertical-align: top;
+}
 
-/* NOTE: no `height` / `overflow: hidden` on .q-sheet or .q-flow. The prototype
-   pins both to 297mm because its JavaScript paginates by cloning sheets. Here
-   one stylesheet serves Dompdf, which paginates by page height; a fixed height
-   would silently clip everything past the first page. */
+/* --- page wrapper ---------------------------------------------------------
+   One .q-page per A4 sheet. The screen stacks them, the browser prints one
+   per page, and Dompdf breaks on the same element — so the preview, the
+   printed page and the PDF are the same document. Page breaks live here now
+   rather than on .q-sheet, which would also fire in the PDF where each .q-page
+   is already a full page.
+   ------------------------------------------------------------------------- */
+.q-page {
+    display: block;
+    /* The browser prints one .q-page per sheet. In the PDF each .q-page is
+       already a full A4 sheet, so the break is driven by the fixed height
+       below rather than by break-after (which would add a blank page). */
+    break-inside: avoid;
+    page-break-inside: avoid;
+}
+
+.q-page:last-child {
+    break-after: auto;
+    page-break-after: auto;
+}
+
+/* Screen-only caption above each sheet, as in the prototype. Never printed. */
+.page-label {
+    text-align: center;
+    font-size: 12px;
+    color: #7a819c;
+    padding: 0 0 8px;
+}
+
+/* NOTE: no `overflow: hidden` on .q-sheet or .q-flow. The prototype pins both
+   to 297mm because its JavaScript paginates by cloning sheets. Here one
+   stylesheet serves Dompdf as well; QuotationPaginator splits the items so a
+   page never exceeds the fixed .q-frame height, and clipping would silently
+   lose content rather than reveal a mistake. */
 
 /* --- top strip ------------------------------------------------------- */
+/* Nested tables use `width: 100%`.
+   The bands must span the full frame width. An earlier attempt used `auto`,
+   which made each band shrink to its content and left the right-hand column
+   stranded in the middle of the sheet (visible on the reference band).
+   The clipping seen earlier came from `table-layout: fixed` on the OUTER
+   .q-frame, which is why that one carries an explicit width instead. */
 .q-strip {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 12px;
-    padding: 9px 16px;
+    display: table;
+    table-layout: fixed;
+    width: 100%;
     border-bottom: 1px solid var(--ink-line);
     font-size: 12px;
     color: var(--ink-2);
 }
-.q-strip > :first-child { flex: 1; }
-.q-strip > :last-child { flex: 1; }
+/* Cells are top-aligned: `vertical-align: middle` makes Dompdf stretch the row
+   to the tallest cell's line box, which added ~7mm to this band. Padding lives
+   on the outer cells only; the title cell carries its own, tighter padding. */
+.q-strip > div { display: table-cell; vertical-align: top; padding: 9px 16px; }
+.q-strip > :first-child { width: 36%; }
+.q-strip > :last-child { width: 36%; }
+.q-strip > .q-doc-title { width: auto; padding: 9px 0 8px; }
 .q-doc-title {
-    background: var(--ink);
+    /* `background-color`, not the `background` shorthand: Dompdf does not
+       resolve var() in the shorthand, which left this and the table header
+       unpainted (white text on a white sheet). The longhand form works in
+       both engines. See resources/views/pdf/quote.blade.php. */
+    background-color: var(--ink);
     color: #fff;
     font-weight: 600;
     font-size: 11.5px;
@@ -82,13 +183,16 @@
     padding: 4px 14px 3px;
     border-radius: 2px;
     white-space: nowrap;
+    text-align: center;
 }
 .q-strip b { color: var(--paper-text); font-weight: 600; }
-.q-strip .q-mob { text-align: right; line-height: 1.5; }
+.q-strip .q-mob { text-align: right; line-height: 13.5pt; }
 
 /* --- letterhead ------------------------------------------------------ */
 .q-head { text-align: center; padding: 14px 20px 11px; }
-.q-brand { display: flex; align-items: center; justify-content: center; gap: 14px; }
+.q-brand { display: table; margin: 0 auto; }
+.q-brand > * { display: table-cell; vertical-align: top; }
+.q-brand > * + * { padding-left: 14px; }
 .q-logo { width: 52px; height: 52px; object-fit: contain; }
 .q-company {
     font-family: 'Zilla Slab', Rockwell, Georgia, serif;
@@ -98,48 +202,77 @@
     letter-spacing: 0.03em;
     color: var(--ink);
 }
-.q-company-rule { display: flex; align-items: center; gap: 10px; justify-content: center; margin: 9px auto 7px; max-width: 540px; }
-.q-company-rule::before,
-.q-company-rule::after { content: ''; flex: 1; border-top: 3px double var(--ink); }
-.q-deals { font-size: 13px; font-weight: 600; padding: 0 6px; white-space: nowrap; }
+/* Letterhead rule.
+   Drawn with a flex-free technique that both engines measure identically:
+   a wrapper with a top and bottom border, and the text sitting in a span that
+   is pulled up over the top border. An earlier version used
+   `position: relative; top: -9px`; Dompdf reserved that offset as extra
+   height (the letterhead band grew ~14mm) while Chrome did not, which pushed
+   the closing block onto a second PDF page. Using a negative top MARGIN
+   collapses the space in both engines, so the band measures the same. */
+.q-company-rule {
+    display: block;
+    text-align: center;
+    font-size: 13px;
+    line-height: 1;
+    margin: 9px auto 7px;
+    max-width: 540px;
+    border-top: 3px double var(--ink);
+}
+.q-deals {
+    display: inline-block;
+    position: relative;
+    top: -0.72em;
+    padding: 0 8px;
+    font-weight: 600;
+    background-color: #fff;
+    white-space: nowrap;
+}
 .q-deals span { font-weight: 500; color: var(--ink-2); }
 .q-address { font-size: 12px; color: var(--ink-2); }
 
 /* Header alignment variants (decision #10). */
 .q-head.left { text-align: left; }
-.q-head.left .q-brand { justify-content: flex-start; }
-.q-head.left .q-company-rule { justify-content: flex-start; }
-.q-head.left .q-company-rule::before { display: none; }
-.q-head.left .q-deals { padding-left: 0; }
+.q-head.left .q-brand { margin: 0; }
+.q-head.left .q-company-rule { margin-left: 0; margin-right: auto; }
+.q-head.left .q-deals { padding-left: 0; text-align: left; }
 .q-head.right { text-align: right; }
-.q-head.right .q-brand { flex-direction: row-reverse; justify-content: flex-end; }
-.q-head.right .q-company-rule { justify-content: flex-end; }
-.q-head.right .q-company-rule::after { display: none; }
-.q-head.right .q-deals { padding-right: 0; }
+.q-head.right .q-brand { margin: 0 0 0 auto; direction: rtl; }
+.q-head.right .q-brand > * { direction: ltr; }
+.q-head.right .q-brand > * + * { padding-left: 0; padding-right: 14px; }
+.q-head.right .q-company-rule { margin-left: auto; margin-right: 0; }
+.q-head.right .q-deals { padding-right: 0; text-align: right; }
 
 /* --- reference band --------------------------------------------------- */
 .q-meta {
-    display: flex;
-    justify-content: space-between;
-    gap: 16px;
-    background: var(--ink-soft);
+    display: table;
+    table-layout: fixed;
+    width: 100%;
+    background-color: var(--ink-soft);
     border-top: 1.5px solid var(--ink);
     border-bottom: 1px solid var(--ink-line);
-    padding: 7px 16px;
     font-size: 13px;
 }
+.q-meta > div { display: table-cell; padding: 7px 16px; }
+.q-meta > :last-child { text-align: right; }
 .q-meta b { font-weight: 700; color: var(--ink); font-variant-numeric: tabular-nums; }
 
-/* --- parties ---------------------------------------------------------- */
-.q-parties { display: flex; gap: 20px; padding: 11px 16px 4px; }
-.q-parties > :first-child { flex: 1.4; }
-.q-parties > :last-child { flex: 1; }
+/* --- parties ----------------------------------------------------------
+   The horizontal gutter is the SAME on both sides, and the right-hand
+   contact cell is allowed to wrap. A long address such as
+   "rahul.codexmatrix@gmail.com" is a single unbreakable token; inside a
+   table-cell it would otherwise render past the cell and sit on top of the
+   frame rule, which is exactly the "text touching the line" defect. */
+.q-parties { display: table; table-layout: fixed; width: 100%; padding: 11px 16px 4px; }
+.q-parties > div { display: table-cell; vertical-align: top; padding-right: 20px; overflow-wrap: break-word; word-break: break-word; }
+.q-parties > :first-child { width: 58%; }
+.q-parties > :last-child { width: 42%; padding-right: 0; }
 .q-to-label { font-size: 12px; color: var(--ink-2); margin-bottom: 2px; }
 .q-to { padding-left: 34px; }
-.q-to .name { font-size: 16px; font-weight: 700; line-height: 1.3; }
+.q-to .name { font-size: 16px; font-weight: 700; line-height: 15.6pt; }
 .q-to p { font-size: 12.5px; color: #3a4260; margin-top: 1px; }
-.q-side { font-size: 12px; color: var(--ink-2); align-self: end; }
-.q-side div { display: flex; justify-content: flex-end; gap: 8px; line-height: 1.8; }
+.q-side { font-size: 12px; color: var(--ink-2); vertical-align: bottom !important; }
+.q-side div { text-align: right; line-height: 16.2pt; }
 .q-side b { color: var(--paper-text); font-weight: 600; }
 
 /* --- intro ------------------------------------------------------------ */
@@ -160,48 +293,80 @@
 
 /* --- items table ------------------------------------------------------ */
 .q-table-wrap { padding: 8px 10px 0; }
-.q-table { width: 100%; border-collapse: collapse; border: 1.5px solid var(--ink); table-layout: fixed; font-size: 12.5px; }
+.q-table {
+    width: 100%;
+    border-spacing: 0;
+    border: 1.5px solid var(--ink);
+    table-layout: fixed;
+    font-size: 12.5px;
+    /* Explicit absolute line-height. 1.45 x 12.5px = 18.125px = 13.59pt
+       (1px = 0.75pt). The table is the tallest block on the sheet, and with
+       the inherited multiplier Dompdf made every row ~1.5x taller than the
+       browser, which is what forced a second PDF page. */
+    line-height: 13.59pt;
+}
 .q-table th {
-    background: var(--ink);
+    background-color: var(--ink);
     color: #fff;
     font-weight: 600;
     font-size: 12px;
-    padding: 7px 10px 6px;
+    /* Cell padding is 6px rather than 7px. With 7px the Dompdf rendering
+       overflowed the A4 page by ~8mm and pushed Terms onto a second sheet;
+       the 1px saving per row is imperceptible and keeps the preview and the
+       PDF in step. */
+    padding: 6px 10px;
     text-align: left;
     border-left: 1px solid rgb(255 255 255 / 25%);
     white-space: nowrap;
+    /* Stated on the cells as well as the table: Dompdf does not reliably
+       apply an inherited line-height to table cells and falls back to the
+       font's natural line box, making every row ~3mm too tall. */
+    line-height: 12.6pt;
 }
 .q-table th:first-child { border-left: none; }
-.q-table td { padding: 7px 10px; vertical-align: top; border-left: 1px solid var(--ink); }
+.q-table td {
+    padding: 6px 10px;
+    vertical-align: top;
+    border-left: 1px solid var(--ink);
+    line-height: 13.59pt;
+}
 .q-table td:first-child { border-left: none; }
 .q-table tbody tr + tr td { border-top: 1px dotted var(--ink-line); }
 .q-table tbody tr.q-filler td { border-top: none; padding: 0; }
 .q-table .c { text-align: center; }
 .q-table .r { text-align: right; font-variant-numeric: tabular-nums; }
 .q-table td.desc { font-weight: 600; }
-.q-table tfoot td { border-top: 1px solid var(--ink); padding: 6px 10px; font-size: 12.5px; }
+.q-table tfoot td { border-top: 1px solid var(--ink); padding: 5px 10px; font-size: 12.5px; }
 .q-table tfoot td.lbl { text-align: right; color: var(--ink-2); }
-.q-table tfoot tr.grand td { background: var(--ink-soft); border-top: 1.5px solid var(--ink); font-size: 14px; font-weight: 700; color: var(--ink); padding: 8px 10px; }
-.q-carry { font-size: 11.5px; color: #7a819c; font-style: italic; text-align: right; padding: 5px 12px 0; }
+.q-table tfoot tr.grand td { background-color: var(--ink-soft); border-top: 1.5px solid var(--ink); font-size: 14px; font-weight: 700; color: var(--ink); padding: 6px 10px; }
+.q-carry { font-size: 11.5px; color: #7a819c; font-style: italic; text-align: right; padding: 5px 16px 0; }
 
-/* --- closing ---------------------------------------------------------- */
+/* --- closing ----------------------------------------------------------
+   Every band shares the 16px gutter so the left and right margins of the
+   sheet read as one straight line. The amount-in-words line was 12px, which
+   made the two edges visibly ragged. */
 .q-closing { padding-top: 7px; page-break-inside: avoid; }
-.q-words { font-size: 12px; color: #3a4260; padding: 0 12px; }
+.q-words { font-size: 12px; color: #3a4260; padding: 0 16px; overflow-wrap: break-word; }
 .q-words b { color: var(--paper-text); font-weight: 600; }
-.q-foot { display: flex; gap: 20px; padding: 12px 16px; align-items: flex-end; }
-.q-terms { flex: 1.35; }
+.q-foot { display: table; table-layout: fixed; width: 100%; padding: 12px 16px; }
+.q-terms { display: table-cell; vertical-align: top; width: 57%; padding-right: 20px; }
 .q-terms h4 { font-size: 13px; font-weight: 700; color: var(--ink); margin-bottom: 4px; }
 .q-terms ol { margin: 0; padding-left: 18px; }
-.q-terms li { font-size: 12px; color: #3a4260; line-height: 1.65; padding-left: 2px; }
+.q-terms li { font-size: 12px; color: #3a4260; line-height: 14.85pt; padding-left: 2px; }
 .q-terms li.key { color: var(--paper-text); font-weight: 600; }
-.q-sign { flex: 1; text-align: center; }
+.q-sign { display: table-cell; vertical-align: top; width: 43%; text-align: center; }
 .q-sign .for { font-size: 12.5px; color: var(--ink-2); }
 .q-sign .for b { color: var(--paper-text); font-weight: 600; }
-.q-stamp-slot { height: 116px; display: flex; align-items: center; justify-content: center; }
+/* The slot is a plain block: a nested table here over-ran the signature
+   column in Dompdf and drew a rounded border around the stamp. */
+.q-stamp-slot { height: 100px; display: block; text-align: center; }
+.q-stamp-slot > img,
+.q-stamp-slot > .q-stamp,
+.q-stamp-slot > .q-stamp-empty { display: inline-block; vertical-align: middle; }
 .q-stamp-img { max-width: 110px; max-height: 110px; object-fit: contain; opacity: 0.9; }
 .q-sig-img { max-width: 150px; max-height: 60px; object-fit: contain; mix-blend-mode: multiply; }
 .q-sign .auth { border-top: 1px solid var(--ink-2); display: inline-block; min-width: 180px; padding-top: 5px; font-size: 12.5px; font-weight: 600; }
-.q-sign .person { font-size: 12px; color: #3a4260; margin-top: 3px; line-height: 1.4; }
+.q-sign .person { font-size: 12px; color: #3a4260; margin-top: 3px; line-height: 12.6pt; }
 .q-sign .person b { color: var(--paper-text); font-weight: 600; display: block; }
 .q-thanks { text-align: center; font-size: 10.5px; color: #7a819c; padding: 0 12px 4px; }
 
@@ -215,38 +380,48 @@
     opacity: 0.82;
     border: 2.4px solid currentColor;
     border-radius: 50%;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    gap: 2px;
-    text-align: center;
-    padding: 10px;
+    display: table;
+    vertical-align: middle;
 }
+.q-stamp > * { display: block; text-align: center; }
 .q-stamp::before {
     content: '';
     position: absolute;
+    top: 9px;
+    left: 9px;
     width: 84px;
     height: 84px;
     border: 0.8px solid currentColor;
     border-radius: 50%;
 }
-.q-stamp-ring { font-size: 7.5px; font-weight: 700; letter-spacing: 0.02em; line-height: 1.3; }
-.q-stamp-role { font-size: 8px; font-weight: 700; letter-spacing: 0.06em; }
-.q-stamp-rule { width: 46px; border-top: 0.8px solid currentColor; }
-.q-stamp-empty { width: 96px; height: 96px; border: 1.5px dashed var(--ink-line); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 10.5px; color: #9aa1b8; }
+.q-stamp-ring { font-size: 7.5px; font-weight: 700; letter-spacing: 0.02em; line-height: 7.31pt; padding-top: 20px; }
+.q-stamp-role { font-size: 8px; font-weight: 700; letter-spacing: 0.06em; line-height: 9pt; }
+.q-stamp-rule { width: 46px; margin: 2px auto; border-top: 0.8px solid currentColor; }
+.q-stamp-empty {
+    width: 96px;
+    height: 96px;
+    border: 1.5px dashed var(--ink-line);
+    border-radius: 50%;
+    display: table-cell;
+    vertical-align: middle;
+    text-align: center;
+}
 
-/* --- page footer ------------------------------------------------------ */
+/* --- page footer ------------------------------------------------------
+   Gutter raised from 14px to the sheet-wide 16px so the footer's text lines
+   up with every band above it, and the right-hand cell wraps rather than
+   pushing "Page n of m" through the frame rule. */
 .q-pagefoot {
-    display: flex;
-    justify-content: space-between;
-    gap: 12px;
+    display: table;
+    table-layout: fixed;
+    width: 100%;
     border-top: 1px solid var(--ink-line);
-    padding: 6px 14px 7px;
-    margin-top: auto;
+    padding: 6px 16px 7px;
     font-size: 10.5px;
     color: #7a819c;
 }
+.q-pagefoot > span { display: table-cell; overflow-wrap: break-word; }
+.q-pagefoot > :last-child { text-align: right; }
 .q-continue { font-size: 11.5px; color: #7a819c; font-style: italic; padding: 7px 16px 0; }
 .q-cont-head { padding: 14px 20px 11px; }
 .q-cont-head .n {
@@ -260,6 +435,7 @@
 /* --- print ------------------------------------------------------------ */
 @media print {
     body { background: #fff; }
-    .q-sheet { box-shadow: none; margin: 0; page-break-after: always; }
-    .q-sheet:last-child { page-break-after: auto; }
+
+    /* The page caption is a screen affordance only. */
+    .page-label { display: none; }
 }

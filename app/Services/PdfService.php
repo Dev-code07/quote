@@ -44,6 +44,26 @@ class PdfService
     }
 
     /**
+     * Raw HTML for a quote, used by the client-side paginator.
+     *
+     * The browser is the only engine here that can measure text, so it decides
+     * where the page breaks go; Dompdf then renders the same markup. Both read
+     * the identical stylesheet and the identical x-a4-sheet component, so the
+     * two cannot disagree about the document's appearance.
+     */
+    public function documentHtml(Quote $quote): string
+    {
+        $quote->loadMissing('items');
+
+        $doc = $this->documents->fromQuote($quote);
+
+        return view('pdf.quote', [
+            'doc' => $doc,
+            'styles' => $this->stylesheet(),
+        ])->render();
+    }
+
+    /**
      * Build the configured Dompdf instance for a quote.
      *
      * Remote loading is disabled: every asset is local, which is both a

@@ -54,6 +54,27 @@ body {
 /* Alpine's x-cloak: hide elements until Alpine has initialised them. */
 [x-cloak] { display: none !important; }
 
+/*
+ * Quote screen: A4 preview on the left, Summary / Details / Historical
+ * integrity on the right.
+ *
+ * A viewport breakpoint is the wrong signal here. The app shell reserves a
+ * 232px sidebar, so on a 1280px window the CONTENT is only ~1010px wide --
+ * below the `xl:` threshold of 1280px -- and Tailwind collapsed the three
+ * columns to one, dropping the cards underneath the document. A container
+ * query asks the question that actually matters: how wide is the space the
+ * grid actually has?
+ */
+.quote-split {
+    container-type: inline-size;
+}
+
+@container (min-width: 1000px) {
+    .quote-split {
+        grid-template-columns: minmax(0, 2fr) minmax(288px, 1fr);
+    }
+}
+
 /* Print: only the A4 document sheet is printed (docs/quote_preview.html print block). */
 @page { size: A4; margin: 0; }
 @media print {

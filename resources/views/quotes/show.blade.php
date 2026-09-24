@@ -54,8 +54,11 @@
         </form>
     </div>
 
-    <div class="grid grid-cols-1 gap-4 xl:grid-cols-3">
-        <div class="xl:col-span-2">
+    {{-- The container query on .quote-split decides preview-beside-cards from
+         the width actually available, not the window width. --}}
+    <div class="quote-split">
+    <div class="grid grid-cols-1 gap-4">
+        <div>
             <x-card :padding="false">
                 <div class="no-print flex items-center justify-between gap-2 border-b border-app-border px-4 py-3">
                     <h3 class="text-[13px] font-bold">A4 Preview</h3>
@@ -133,5 +136,6 @@
                 </p>
             </x-card>
         </div>
+    </div>
     </div>
 </x-app-layout>

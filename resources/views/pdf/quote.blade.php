@@ -20,7 +20,9 @@
     <title>{{ $doc['meta']['no'] ?? 'Quotation' }}</title>
 
     <style>
-        @page { size: A4; margin: 9mm; }
+        /* The sheet carries its own 9mm padding, so the PDF page has none.
+           This is what makes the PDF page-for-page identical to the preview. */
+        @page { size: A4; margin: 0; }
 
         /* Self-hosted fonts: Dompdf cannot reach a CDN at render time. */
         @font-face { font-family: 'Hind'; font-style: normal; font-weight: 400; src: url('{{ public_path('fonts/Hind-Regular.ttf') }}') format('truetype'); }
@@ -32,11 +34,21 @@
         {!! $styles !!}
 
         body { margin: 0; }
-        .q-sheet { box-shadow: none; margin: 0; width: 100%; min-height: 0; padding: 0; }
-        .q-frame { margin: 0; }
 
-        /* Repeat the column headings on every printed page. */
-        thead { display: table-header-group; }
+        /* The sheet is a fixed A4 page; the screen shadow is meaningless on
+           paper. Width/height/padding all come from the shared stylesheet so
+           the PDF cannot drift from the preview.
+           `min-height` is dropped: the sheet's own 297mm is exactly the page
+           height, so the rounding of a single millimetre pushed a blank sheet
+           out after every real one. The .q-frame's fixed height is what makes
+           the page full, and the page background is already white. */
+        .q-sheet {
+            box-shadow: none;
+            margin: 0 auto;
+            min-height: 0;
+        }
+        .q-frame { margin: 4px; }
+
         tr { page-break-inside: avoid; }
     </style>
 </head>
