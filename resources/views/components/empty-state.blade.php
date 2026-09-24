@@ -7,8 +7,8 @@
 
 <div class="flex flex-col items-center justify-center gap-3 px-6 py-14 text-center">
     @if ($icon)
-        <span class="flex size-16 items-center justify-center rounded-[14px] bg-app-accent-soft text-app-accent" aria-hidden="true">
-            {!! $icon !!}
+        <span class="flex size-16 items-center justify-center rounded-[14px] bg-app-accent-soft text-app-accent">
+            <x-icon :name="$icon" :size="28" />
         </span>
     @endif
 

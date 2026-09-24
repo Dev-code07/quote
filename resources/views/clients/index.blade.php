@@ -1,7 +1,7 @@
 <x-app-layout title="Clients">
     <x-slot name="headerActions">
-        <x-button type="button" x-on:click="$dispatch('open-modal', 'client-form')">
-            <span aria-hidden="true">+</span> Add Client
+        <x-button type="button" x-on:click="$dispatch('open-modal', 'client-form')" icon="plus">
+            Add Client
         </x-button>
     </x-slot>
 
@@ -49,7 +49,7 @@
             <x-empty-state
                 title="No clients found"
                 :description="$search !== '' || $status !== '' ? 'Try a different search or filter.' : 'Add your first customer to start creating quotations.'"
-                :icon="'<svg width=\'28\' height=\'28\' viewBox=\'0 0 24 24\' fill=\'none\' stroke=\'currentColor\' stroke-width=\'1.6\' stroke-linecap=\'round\' stroke-linejoin=\'round\'><path d=\'M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2\'/><circle cx=\'9\' cy=\'7\' r=\'4\'/><path d=\'M19 8v6\'/><path d=\'M22 11h-6\'/></svg>'"
+                icon="user-plus"
             />
         @else
             <div class="overflow-x-auto">
