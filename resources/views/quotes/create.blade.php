@@ -39,7 +39,7 @@
                             </div>
                         </dl>
 
-                        <x-button :href="route('quotes.build', ['template_id' => $item->id])" class="mt-4 w-full">
+                        <x-button :href="route('quotes.build', ['template_id' => $item->id])" icon="chevron-right" class="mt-4 w-full">
                             Use this template
                         </x-button>
                     </div>

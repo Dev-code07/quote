@@ -46,7 +46,7 @@
             <x-input name="to" type="date" label="To" :value="$to" />
 
             <div class="flex gap-2">
-                <x-button type="submit" variant="ghost">Filter</x-button>
+                <x-button type="submit" variant="ghost" icon="filter">Filter</x-button>
                 @if ($search !== '' || $status !== '' || $from || $to)
                     <a href="{{ route('quotes.index') }}" class="self-center pb-2 text-[13px] font-medium text-app-muted hover:text-app-text">Reset</a>
                 @endif

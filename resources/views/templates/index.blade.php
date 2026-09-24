@@ -14,7 +14,7 @@
             <div class="min-w-[240px] flex-1">
                 <x-input name="search" label="Search" placeholder="Template or company name" :value="$search" />
             </div>
-            <x-button type="submit" variant="ghost">Search</x-button>
+            <x-button type="submit" variant="ghost" icon="search">Search</x-button>
             @if ($search !== '')
                 <a href="{{ route('templates.index') }}" class="pb-2 text-[13px] font-medium text-app-muted hover:text-app-text">Reset</a>
             @endif
@@ -92,25 +92,25 @@
                         </div>
 
                         <div class="mt-4 flex flex-wrap gap-2 border-t border-app-border pt-3">
-                            <x-button :href="route('templates.show', $template)" variant="ghost">View</x-button>
-                            <x-button :href="route('templates.edit', $template)" variant="subtle">Edit</x-button>
+                            <x-button :href="route('templates.show', $template)" variant="ghost" icon="eye">View</x-button>
+                            <x-button :href="route('templates.edit', $template)" variant="subtle" icon="edit">Edit</x-button>
 
                             <form method="POST" action="{{ route('templates.duplicate', $template) }}">
                                 @csrf
-                                <x-button type="submit" variant="subtle">Duplicate</x-button>
+                                <x-button type="submit" variant="subtle" icon="copy">Duplicate</x-button>
                             </form>
 
                             @unless ($template->is_default)
                                 <form method="POST" action="{{ route('templates.set-default', $template) }}">
                                     @csrf
-                                    <x-button type="submit" variant="subtle">Set Default</x-button>
+                                    <x-button type="submit" variant="subtle" icon="star">Set Default</x-button>
                                 </form>
                             @endunless
 
                             <form method="POST" action="{{ route('templates.destroy', $template) }}" class="ml-auto" onsubmit="return confirm('Move &quot;{{ addslashes($template->name) }}&quot; to trash?');">
                                 @csrf
                                 @method('DELETE')
-                                <x-button type="submit" variant="danger">Trash</x-button>
+                                <x-button type="submit" variant="danger" icon="trash">Trash</x-button>
                             </form>
                         </div>
                     </div>

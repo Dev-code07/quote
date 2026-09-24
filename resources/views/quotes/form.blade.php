@@ -159,7 +159,7 @@
             </p>
 
             <div class="border-t border-app-border px-5 py-3">
-                <x-button type="button" variant="ghost" x-on:click="addItem()">+ Add Item</x-button>
+                <x-button type="button" variant="ghost" icon="plus" x-on:click="addItem()">Add Item</x-button>
             </div>
         </x-card>
 
@@ -254,9 +254,9 @@
             </div>
 
             <div class="flex flex-wrap items-center gap-2">
-                <x-button :href="route('quotes.index')" variant="ghost">Cancel</x-button>
-                <x-button type="submit" name="intent" value="draft" variant="subtle">Save Draft</x-button>
-                <x-button type="submit" name="intent" value="generate">
+                <x-button :href="route('quotes.index')" variant="ghost" icon="x">Cancel</x-button>
+                <x-button type="submit" name="intent" value="draft" variant="subtle" icon="save">Save Draft</x-button>
+                <x-button type="submit" name="intent" value="generate" icon="check">
                     {{ $quote->exists ? 'Update Quotation' : 'Generate Quotation' }}
                 </x-button>
             </div>

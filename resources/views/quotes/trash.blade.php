@@ -27,12 +27,12 @@
                                     <div class="flex items-center justify-end gap-2">
                                         <form method="POST" action="{{ route('quotes.restore', ['quote' => $quote->id]) }}">
                                             @csrf
-                                            <x-button type="submit" variant="subtle">Restore</x-button>
+                                            <x-button type="submit" variant="subtle" icon="refresh">Restore</x-button>
                                         </form>
                                         <form method="POST" action="{{ route('quotes.force-destroy', ['quote' => $quote->id]) }}" onsubmit="return confirm('Permanently delete {{ $quote->quote_number }}? This cannot be undone.');">
                                             @csrf
                                             @method('DELETE')
-                                            <x-button type="submit" variant="danger">Delete Permanently</x-button>
+                                            <x-button type="submit" variant="danger" icon="trash">Delete Permanently</x-button>
                                         </form>
                                     </div>
                                 </td>

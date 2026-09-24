@@ -9,7 +9,7 @@
         </x-slot>
     </x-section-header>
 
-    <div class="mb-4 flex flex-wrap items-center gap-2">
+    <div class="no-print mb-4 flex flex-wrap items-center gap-2">
         @if ($quote->status !== QuoteStatus::Expired)
             <form method="POST" action="{{ route('quotes.status', $quote) }}">
                 @csrf
@@ -17,7 +17,7 @@
                 @foreach (QuoteStatus::selectableOptions() as $value => $label)
                     @continue($value === $quote->status->value)
                     <input type="hidden" name="status" value="{{ $value }}">
-                    <x-button type="submit" variant="subtle" class="mt-0">
+                    <x-button type="submit" variant="subtle" class="mt-0" :icon="$value === 'approved' ? 'check-circle' : 'send'">
                         Mark as {{ $label }}
                     </x-button>
                 @endforeach
@@ -28,34 +28,36 @@
             </p>
         @endif
 
-        <a href="{{ route('quotes.edit', $quote) }}">
-            <x-button variant="ghost">Edit</x-button>
-        </a>
+        <x-button :href="route('quotes.edit', $quote)" variant="ghost" icon="edit">Edit</x-button>
 
-        <a href="{{ route('quotes.pdf', $quote) }}" target="_blank" rel="noopener">
-            <x-button variant="ghost">Download PDF</x-button>
-        </a>
+        <x-button :href="route('quotes.pdf', $quote)" variant="ghost" icon="download" target="_blank" rel="noopener">
+            Download PDF
+        </x-button>
 
-        <button type="button" x-on:click="window.print()">
-            <x-button variant="ghost">Print</x-button>
+        {{--
+            Prints the document only, and names the file after the quotation.
+            The title is restored immediately after the print dialog closes.
+        --}}
+        <button type="button" class="no-print" x-data x-on:click="const old = document.title; document.title = @js($quote->quote_number.' - '.$quote->clientName()); window.print(); document.title = old;">
+            <x-button variant="ghost" icon="printer">Print</x-button>
         </button>
 
         <form method="POST" action="{{ route('quotes.duplicate', $quote) }}">
             @csrf
-            <x-button type="submit" variant="subtle">Duplicate</x-button>
+            <x-button type="submit" variant="subtle" icon="copy">Duplicate</x-button>
         </form>
 
         <form method="POST" action="{{ route('quotes.destroy', $quote) }}" class="ml-auto" onsubmit="return confirm('Move {{ $quote->quote_number }} to trash?');">
             @csrf
             @method('DELETE')
-            <x-button type="submit" variant="danger">Move to Trash</x-button>
+            <x-button type="submit" variant="danger" icon="trash">Move to Trash</x-button>
         </form>
     </div>
 
     <div class="grid grid-cols-1 gap-4 xl:grid-cols-3">
         <div class="xl:col-span-2">
             <x-card :padding="false">
-                <div class="flex items-center justify-between gap-2 border-b border-app-border px-4 py-3">
+                <div class="no-print flex items-center justify-between gap-2 border-b border-app-border px-4 py-3">
                     <h3 class="text-[13px] font-bold">A4 Preview</h3>
                     <div class="flex items-center gap-1" x-data="{ zoom: 55 }">
                         <button type="button" class="flex size-7 items-center justify-center rounded-[6px] border border-app-border text-app-muted hover:bg-app-neutral-soft" x-on:click="zoom = Math.max(30, zoom - 10)" aria-label="Zoom out">&minus;</button>
@@ -64,7 +66,7 @@
                     </div>
                 </div>
 
-                <div class="overflow-auto bg-app-bg p-6">
+                <div class="print-stage overflow-auto bg-app-bg p-6">
                     <div class="mx-auto origin-top" x-bind:style="`transform: scale(${zoom / 100}); width: ${210 * 96 / 25.4}px;`">
                         <x-a4-sheet :doc="$doc" />
                     </div>
@@ -72,7 +74,7 @@
             </x-card>
         </div>
 
-        <div class="space-y-4">
+        <div class="no-print space-y-4">
             <x-card>
                 <h3 class="mb-3 text-[13px] font-bold uppercase tracking-wide text-app-faint">Summary</h3>
                 <dl class="space-y-2 text-[13px]">

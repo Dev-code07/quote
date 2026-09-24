@@ -27,12 +27,12 @@
                                     <div class="flex items-center justify-end gap-2">
                                         <form method="POST" action="{{ route('templates.restore', ['template' => $template->id]) }}">
                                             @csrf
-                                            <x-button type="submit" variant="subtle">Restore</x-button>
+                                            <x-button type="submit" variant="subtle" icon="refresh">Restore</x-button>
                                         </form>
                                         <form method="POST" action="{{ route('templates.force-destroy', ['template' => $template->id]) }}" onsubmit="return confirm('Permanently delete this template and its uploaded files? Quotes already created are not affected.');">
                                             @csrf
                                             @method('DELETE')
-                                            <x-button type="submit" variant="danger">Delete Permanently</x-button>
+                                            <x-button type="submit" variant="danger" icon="trash">Delete Permanently</x-button>
                                         </form>
                                     </div>
                                 </td>

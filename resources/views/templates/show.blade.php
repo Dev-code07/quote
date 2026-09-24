@@ -1,24 +1,24 @@
 <x-app-layout :title="$template->name">
     <x-section-header :title="$template->name" :description="$template->company_name" back="{{ route('templates.index') }}">
         <x-slot name="actions">
-            <x-button :href="route('templates.edit', $template)" variant="ghost">Edit</x-button>
+            <x-button :href="route('templates.edit', $template)" variant="ghost" icon="edit">Edit</x-button>
 
             <form method="POST" action="{{ route('templates.duplicate', $template) }}">
                 @csrf
-                <x-button type="submit" variant="subtle">Duplicate</x-button>
+                <x-button type="submit" variant="subtle" icon="copy">Duplicate</x-button>
             </form>
 
             @unless ($template->is_default)
                 <form method="POST" action="{{ route('templates.set-default', $template) }}">
                     @csrf
-                    <x-button type="submit" variant="subtle">Set Default</x-button>
+                    <x-button type="submit" variant="subtle" icon="star">Set Default</x-button>
                 </form>
             @endunless
 
             <form method="POST" action="{{ route('templates.destroy', $template) }}" onsubmit="return confirm('Move this template to trash?');">
                 @csrf
                 @method('DELETE')
-                <x-button type="submit" variant="danger">Trash</x-button>
+                <x-button type="submit" variant="danger" icon="trash">Trash</x-button>
             </form>
         </x-slot>
     </x-section-header>

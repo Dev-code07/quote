@@ -11,6 +11,7 @@
         <x-slot name="actions">
             <x-button
                 variant="ghost"
+                icon="edit"
                 type="button"
                 x-on:click="$dispatch('open-modal', 'client-form'); $dispatch('fill-client', {{ Js::from(['id' => $client->id, 'name' => $client->name, 'contact_person' => $client->contact_person, 'email' => $client->email, 'phone' => $client->phone, 'gstin' => $client->gstin, 'address' => $client->address, 'is_active' => $client->is_active]) }})"
             >
@@ -78,7 +79,7 @@
                     <form method="POST" action="{{ route('clients.toggle-status', $client) }}">
                         @csrf
                         @method('PATCH')
-                        <x-button type="submit" variant="ghost" class="w-full">
+                        <x-button type="submit" variant="ghost" :icon="$client->is_active ? 'x' : 'check'" class="w-full">
                             {{ $client->is_active ? 'Deactivate Client' : 'Activate Client' }}
                         </x-button>
                     </form>
@@ -86,7 +87,7 @@
                     <form method="POST" action="{{ route('clients.destroy', $client) }}" onsubmit="return confirm('Move this client to trash? You can restore them later.');">
                         @csrf
                         @method('DELETE')
-                        <x-button type="submit" variant="danger" class="w-full">Move to Trash</x-button>
+                        <x-button type="submit" variant="danger" icon="trash" class="w-full">Move to Trash</x-button>
                     </form>
                 </div>
             </x-card>

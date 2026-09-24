@@ -107,8 +107,8 @@
         </div>
 
         <div class="flex items-center justify-end gap-2 border-t border-app-border bg-app-neutral-soft px-5 py-3">
-            <x-button type="button" variant="ghost" x-on:click="$dispatch('close-modal', 'client-form')">Cancel</x-button>
-            <x-button type="submit" x-text="editing ? 'Save Changes' : 'Create Client'">Create Client</x-button>
+            <x-button type="button" variant="ghost" icon="x" x-on:click="$dispatch('close-modal', 'client-form')">Cancel</x-button>
+            <x-button type="submit" icon="check" x-text="editing ? 'Save Changes' : 'Create Client'">Create Client</x-button>
         </div>
     </form>
 </x-modal>

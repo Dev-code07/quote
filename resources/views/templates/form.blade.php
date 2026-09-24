@@ -32,7 +32,7 @@
         </div>
 
         <div class="flex flex-wrap items-center gap-2">
-            <x-button :href="route('templates.index')" variant="ghost">Cancel</x-button>
+            <x-button :href="route('templates.index')" variant="ghost" icon="x">Cancel</x-button>
             <x-button type="submit" form="template-form" icon="save">Save Template</x-button>
         </div>
     </div>
@@ -333,7 +333,7 @@
         </p>
 
         <div class="flex flex-wrap items-center gap-2">
-            <x-button :href="route('templates.index')" variant="ghost">Cancel</x-button>
+            <x-button :href="route('templates.index')" variant="ghost" icon="x">Cancel</x-button>
             <x-button type="submit" form="template-form" icon="save">Save Template</x-button>
         </div>
     </div>

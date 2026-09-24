@@ -33,13 +33,13 @@
                                     <div class="flex items-center justify-end gap-2">
                                         <form method="POST" action="{{ route('clients.restore', ['client' => $client->id]) }}">
                                             @csrf
-                                            <x-button type="submit" variant="subtle">Restore</x-button>
+                                            <x-button type="submit" variant="subtle" icon="refresh">Restore</x-button>
                                         </form>
 
                                         <form method="POST" action="{{ route('clients.force-destroy', ['client' => $client->id]) }}" onsubmit="return confirm('Permanently delete &quot;{{ addslashes($client->name) }}&quot;? This cannot be undone.');">
                                             @csrf
                                             @method('DELETE')
-                                            <x-button type="submit" variant="danger">Delete Permanently</x-button>
+                                            <x-button type="submit" variant="danger" icon="trash">Delete Permanently</x-button>
                                         </form>
                                     </div>
                                 </td>

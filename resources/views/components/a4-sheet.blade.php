@@ -85,7 +85,7 @@
     $sealEmpty = ! $hasStampImage && ! $generatedSeal;
 @endphp
 
-<div class="q-sheet" style="{{ $style }}" @if ($preview) data-preview-sheet @endif>
+<div class="q-sheet print-sheet" style="{{ $style }}" @if ($preview) data-preview-sheet @endif>
     <div class="q-frame">
         <div class="q-flow">
 

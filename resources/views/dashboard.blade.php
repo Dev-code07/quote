@@ -6,7 +6,7 @@
         description="Quotation &amp; Proforma Invoice Management System"
     >
         <x-slot name="actions">
-            <x-button :href="route('quotes.create')">+ New Quotation</x-button>
+            <x-button :href="route('quotes.create')" icon="plus">New Quotation</x-button>
         </x-slot>
     </x-section-header>
 
@@ -120,9 +120,9 @@
             <x-card>
                 <h3 class="mb-3 text-[13px] font-bold">Quick actions</h3>
                 <div class="space-y-2">
-                    <x-button :href="route('quotes.create')" class="w-full">New Quotation</x-button>
-                    <x-button :href="route('templates.create')" variant="ghost" class="w-full">New Template</x-button>
-                    <x-button :href="route('clients.index')" variant="ghost" class="w-full">Manage Clients</x-button>
+                    <x-button :href="route('quotes.create')" icon="file-plus" class="w-full">New Quotation</x-button>
+                    <x-button :href="route('templates.create')" variant="ghost" icon="file-plus" class="w-full">New Template</x-button>
+                    <x-button :href="route('clients.index')" variant="ghost" icon="users" class="w-full">Manage Clients</x-button>
                 </div>
             </x-card>
         </div>

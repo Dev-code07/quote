@@ -31,7 +31,7 @@
                 :value="$status"
             />
 
-            <x-button type="submit" variant="ghost">Apply</x-button>
+            <x-button type="submit" variant="ghost" icon="check">Apply</x-button>
 
             @if ($search !== '' || $status !== '')
                 <a href="{{ route('clients.index') }}" class="pb-2 text-[13px] font-medium text-app-muted hover:text-app-text">Reset</a>

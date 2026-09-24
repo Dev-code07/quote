@@ -54,7 +54,42 @@ body {
 /* Alpine's x-cloak: hide elements until Alpine has initialised them. */
 [x-cloak] { display: none !important; }
 
-/* Print: only the A4 document sheet is printed (see resources/views/pdf/quote.blade.php) */
+/* Print: only the A4 document sheet is printed (docs/quote_preview.html print block). */
+@page { size: A4; margin: 0; }
 @media print {
-    .no-print { display: none !important; }
+    /* App chrome: sidebar, topbar, footer and every nav element. */
+    .no-print,
+    aside,
+    header,
+    footer,
+    nav {
+        display: none !important;
+    }
+
+    /* The zoom wrapper scales the sheet for on-screen viewing; printing it
+       scaled would produce a tiny page, so the transform is dropped. */
+    [style*='transform'] {
+        transform: none !important;
+        width: auto !important;
+    }
+
+    /* The scroll container around the sheet: drop padding, scrolling and the
+       grey stage background so the sheet sits flush on the page. */
+    .print-stage {
+        padding: 0 !important;
+        overflow: visible !important;
+        background: none !important;
+    }
+
+    .print-sheet {
+        box-shadow: none !important;
+        margin: 0 !important;
+        break-after: page;
+        page-break-after: always;
+    }
+
+    .print-sheet:last-child {
+        break-after: auto;
+        page-break-after: auto;
+    }
 }
