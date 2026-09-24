@@ -18,7 +18,8 @@ use Illuminate\Support\Facades\Storage;
     'name', 'is_default', 'accent_color', 'header_alignment',
     'letterhead_display_name', 'doc_title', 'company_name', 'company_gstin',
     'tagline', 'address', 'email', 'mobile_1', 'mobile_2', 'stamp_place',
-    'logo_path', 'signature_path', 'authorized_person', 'designation',
+    'logo_path', 'signature_path', 'company_stamp_path', 'use_generated_seal',
+    'authorized_person', 'designation',
     'default_gst_rate', 'intro_message', 'delivery_period', 'warranty',
     'validity_text', 'extra_terms', 'notes', 'last_used_at', 'created_by',
 ])]
@@ -36,6 +37,7 @@ class QuoteTemplate extends Model
     {
         return [
             'is_default' => 'boolean',
+            'use_generated_seal' => 'boolean',
             'accent_color' => AccentPalette::class,
             'header_alignment' => HeaderAlignment::class,
             'default_gst_rate' => 'decimal:2',
@@ -111,6 +113,14 @@ class QuoteTemplate extends Model
     public function signatureUrl(): ?string
     {
         return $this->signature_path ? Storage::disk('public')->url($this->signature_path) : null;
+    }
+
+    /**
+     * URL of the uploaded company stamp, if any.
+     */
+    public function companyStampUrl(): ?string
+    {
+        return $this->company_stamp_path ? Storage::disk('public')->url($this->company_stamp_path) : null;
     }
 
     /**

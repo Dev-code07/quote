@@ -19,6 +19,8 @@ class TemplateUploadService
 
     private const DIRECTORY_SIGNATURE = 'templates/signatures';
 
+    private const DIRECTORY_STAMP = 'templates/stamps';
+
     /**
      * Store the uploaded logo and return its relative path, or null.
      */
@@ -33,6 +35,14 @@ class TemplateUploadService
     public function storeSignature(Request $request): ?string
     {
         return $this->store($request->file('signature'), self::DIRECTORY_SIGNATURE);
+    }
+
+    /**
+     * Store the optional round company stamp (template editor step 4).
+     */
+    public function storeStamp(Request $request): ?string
+    {
+        return $this->store($request->file('company_stamp'), self::DIRECTORY_STAMP);
     }
 
     /**

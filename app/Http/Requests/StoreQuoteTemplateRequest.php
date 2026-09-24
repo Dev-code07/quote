@@ -38,6 +38,8 @@ class StoreQuoteTemplateRequest extends FormRequest
             // Uploads: MIME + extension + size (rules.md section 9, FR-13)
             'logo' => ['nullable', 'file', 'mimes:png,jpg,jpeg,svg,webp', 'max:2048'],
             'signature' => ['nullable', 'file', 'mimes:png,jpg,jpeg,svg,webp', 'max:2048'],
+            'company_stamp' => ['nullable', 'file', 'mimes:png,jpg,jpeg,svg,webp', 'max:2048'],
+            'use_generated_seal' => ['nullable', 'boolean'],
             'remove_logo' => ['nullable', 'boolean'],
             'remove_signature' => ['nullable', 'boolean'],
 

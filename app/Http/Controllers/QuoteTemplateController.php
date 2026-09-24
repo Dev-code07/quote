@@ -60,6 +60,14 @@ class QuoteTemplateController extends Controller
                 'default_gst_rate' => 18,
             ]),
             'copyFrom' => QuoteTemplate::query()->orderBy('name')->get(),
+            'previewDoc' => $this->documents->fromTemplate(
+                new QuoteTemplate([
+                    'accent_color' => AccentPalette::default(),
+                    'header_alignment' => HeaderAlignment::default(),
+                    'doc_title' => 'QUOTATION',
+                    'default_gst_rate' => 18,
+                ])
+            ),
         ]);
     }
 
@@ -77,6 +85,8 @@ class QuoteTemplateController extends Controller
                 ...$data,
                 'logo_path' => $this->uploads->storeLogo($request),
                 'signature_path' => $this->uploads->storeSignature($request),
+                'company_stamp_path' => $this->uploads->storeStamp($request),
+                'use_generated_seal' => $request->boolean('use_generated_seal'),
                 'created_by' => $request->user()->id,
             ]);
 
@@ -119,6 +129,7 @@ class QuoteTemplateController extends Controller
                 ->whereKeyNot($template->getKey())
                 ->orderBy('name')
                 ->get(),
+            'previewDoc' => $this->documents->fromTemplate($template),
         ]);
     }
 
@@ -153,6 +164,18 @@ class QuoteTemplateController extends Controller
                 $data['signature_path'] = $this->uploads->storeSignature($request);
             }
 
+            if ($request->boolean('remove_company_stamp')) {
+                $this->uploads->delete($template->company_stamp_path);
+                $data['company_stamp_path'] = null;
+            }
+
+            if ($request->hasFile('company_stamp')) {
+                $this->uploads->delete($template->company_stamp_path);
+                $data['company_stamp_path'] = $this->uploads->storeStamp($request);
+            }
+
+            $data['use_generated_seal'] = $request->boolean('use_generated_seal');
+
             $template->update($data);
 
             if ($template->is_default) {
@@ -178,6 +201,7 @@ class QuoteTemplateController extends Controller
         // Share the same stored file; deleting one copy must not break the other.
         $copy->logo_path = $template->logo_path;
         $copy->signature_path = $template->signature_path;
+        $copy->company_stamp_path = $template->company_stamp_path;
         $copy->created_by = auth()->id();
         $copy->save();
 

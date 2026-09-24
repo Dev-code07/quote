@@ -1,14 +1,36 @@
 @use('App\Enums\AccentPalette')
 @use('App\Enums\HeaderAlignment')
 
-<x-app-layout :title="$template->exists ? 'Edit Template' : 'New Template'">
-    <x-section-header
-        :title="$template->exists ? 'Edit Template' : 'New Template'"
-        :description="$template->exists ? 'Changes apply to new quotations only. Existing quotations keep their original snapshot.' : 'Build a reusable, branded quotation layout.'"
-        back="{{ route('templates.index') }}"
-    />
+@php
+    $isEdit = $template->exists;
+    $palettes = collect(AccentPalette::cases())
+        ->mapWithKeys(fn (AccentPalette $p) => [$p->value => $p->colours()])
+        ->all();
+@endphp
 
-    @if ($template->exists)
+<x-app-layout :title="$isEdit ? 'Edit Quote Template' : 'Create Quote Template'">
+    {{-- Breadcrumb + page head, matching docs/quoteflow_template_editor.html --}}
+    <div class="mb-3 flex flex-wrap items-center gap-1.5 text-[12.5px] text-app-faint">
+        <a href="{{ route('templates.index') }}" class="transition-colors hover:text-app-accent">Templates</a>
+        <span aria-hidden="true">/</span>
+        <span class="font-medium text-app-muted">{{ $isEdit ? 'Edit Template' : 'Create Template' }}</span>
+    </div>
+
+    <div class="mb-[22px] flex flex-wrap items-end justify-between gap-4">
+        <div>
+            <h1 class="text-[24px] font-bold tracking-[-0.3px] text-app-text">
+                {{ $isEdit ? 'Edit Quote Template' : 'Create Quote Template' }}
+            </h1>
+            <p class="mt-1 text-[13px] text-app-muted">Set up the reusable quotation format.</p>
+        </div>
+
+        <div class="flex flex-wrap items-center gap-2">
+            <x-button :href="route('templates.index')" variant="ghost">Cancel</x-button>
+            <x-button type="submit" form="template-form" icon="save">Save Template</x-button>
+        </div>
+    </div>
+
+    @if ($isEdit)
         <div class="mb-4 flex flex-wrap items-center gap-2">
             <span class="rounded-full bg-app-accent-soft px-2.5 py-1 text-xs font-semibold text-app-accent">
                 Editing: {{ $template->name }}
@@ -19,240 +41,297 @@
         </div>
     @endif
 
-    <form
-        method="POST"
-        enctype="multipart/form-data"
-        action="{{ $template->exists ? route('templates.update', $template) : route('templates.store') }}"
+    {{-- .editor: minmax(0,1fr) minmax(440px,1.05fr), 24px gap --}}
+    <div
+        class="grid grid-cols-1 items-start gap-6 xl:grid-cols-[minmax(0,1fr)_minmax(440px,1.05fr)]"
         x-data="{
             accent: @js($template->accent_color?->value ?? 'navy'),
             alignment: @js($template->header_alignment?->value ?? 'center'),
-            step: 1,
-            total: 4,
-            next() { if (this.step < this.total) { this.step++ ; this.$nextTick(() => this.$refs.form.scrollIntoView({behavior:'smooth', block:'start'})) } },
-            back() { if (this.step > 1) { this.step-- ; this.$nextTick(() => this.$refs.form.scrollIntoView({behavior:'smooth', block:'start'})) } }
+            palettes: @js($palettes),
+            applyInk() {
+                const sheet = this.$refs.preview && this.$refs.preview.querySelector('[style*=\'--ink\']');
+                const c = this.palettes[this.accent];
+                if (! sheet || ! c) return;
+                sheet.style.setProperty('--ink', c.ink);
+                sheet.style.setProperty('--ink-2', c.ink2);
+                sheet.style.setProperty('--ink-soft', c.soft);
+                sheet.style.setProperty('--ink-line', c.line);
+            },
         }"
-        x-ref="form"
-        class="space-y-4"
+        x-init="$nextTick(() => applyInk())"
     >
-        @csrf
-        @if ($template->exists)
-            @method('PUT')
-        @endif
 
-        {{-- Step navigation --}}
-        <x-card>
-            <ol class="grid grid-cols-2 gap-2 sm:grid-cols-4" role="tablist" aria-label="Template steps">
-                @foreach ([1 => 'Business Information', 2 => 'Company Branding', 3 => 'Quote Settings', 4 => 'Footer & Signature'] as $number => $label)
-                    <li>
-                        <button
-                            type="button"
-                            role="tab"
-                            x-on:click="step = {{ $number }}"
-                            x-bind:aria-selected="step === {{ $number }}"
-                            class="flex w-full items-center gap-2 rounded-[8px] border px-3 py-2 text-left text-[13px] font-semibold transition-colors"
-                            x-bind:class="step === {{ $number }} ? 'border-app-accent bg-app-accent-soft text-app-accent' : 'border-app-border bg-white text-app-muted hover:bg-app-neutral-soft'"
-                        >
-                            <span
-                                class="flex size-5 shrink-0 items-center justify-center rounded-full text-[11px] font-bold"
-                                x-bind:class="step === {{ $number }} ? 'bg-app-accent text-white' : 'bg-app-neutral-soft text-app-muted'"
-                            >{{ $number }}</span>
-                            <span class="truncate">{{ $label }}</span>
-                        </button>
-                    </li>
-                @endforeach
-            </ol>
-        </x-card>
+        <form
+            id="template-form"
+            method="POST"
+            enctype="multipart/form-data"
+            action="{{ $isEdit ? route('templates.update', $template) : route('templates.store') }}"
+            class="min-w-0"
+        >
+            @csrf
+            @if ($isEdit)
+                @method('PUT')
+            @endif
 
-        {{-- STEP 1: Business Information --}}
-        <x-card x-show="step === 1">
-            <h3 class="mb-4 text-[15px] font-bold">1. Business Information</h3>
+            {{-- 1. Template Information --}}
+            <x-editor-section :number="1" title="Template Information" hint="Letterhead details">
+                <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                    <div class="sm:col-span-2">
+                        <x-input name="name" label="Template Name" required placeholder="e.g. Hardware Quote" :value="old('name', $template->name)" />
+                        <p class="mt-1 text-[12px] text-app-faint">Only you see this name — it isn't printed on the quote.</p>
+                    </div>
 
-            <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                <x-input name="name" label="Template Name" required class="sm:col-span-2" placeholder="e.g. Standard Business Quote" />
+                    <div class="sm:col-span-2">
+                        <x-input name="company_name" label="Client / Company Name" required placeholder="e.g. Himalayan Computers" :value="old('company_name', $template->company_name)" />
+                    </div>
 
-                <x-input name="company_name" label="Company / Business Name" required placeholder="e.g. ABC Technologies Pvt. Ltd." />
+                    <x-input name="company_gstin" label="GSTIN" maxlength="15" placeholder="22AAAAA0000A1Z5" class="uppercase" :value="old('company_gstin', $template->company_gstin)" />
+                    <x-input name="email" type="email" label="Email" placeholder="sales@company.com" :value="old('email', $template->email)" />
 
-                <x-input name="company_gstin" label="Company GSTIN" maxlength="15" placeholder="22AAAAA0000A1Z5" />
+                    <x-input name="mobile_1" label="Mobile Number" placeholder="98XXX-XXXXX" :value="old('mobile_1', $template->mobile_1)" />
+                    <x-input name="mobile_2" label="Alternate / Landline (optional)" placeholder="0177-2654410" :value="old('mobile_2', $template->mobile_2)" />
 
-                <x-input name="tagline" label="Business Category / Tagline" placeholder="e.g. IT Hardware, Software &amp; Networking" hint="Printed as “Deals in: …” under the company name." />
+                    <x-textarea name="address" label="Address" rows="2" class="sm:col-span-2" :value="old('address', $template->address)" />
 
-                <x-input name="email" type="email" label="Email" placeholder="sales@company.in" />
+                    <x-input name="tagline" label="Business Category / Tagline" class="sm:col-span-2" placeholder="e.g. Computers, Printers &amp; Peripherals" :value="old('tagline', $template->tagline)" />
+                    <p class="-mt-2 text-[12px] text-app-faint sm:col-span-2">Printed as "Deals in: …" under the company name.</p>
+                </div>
+            </x-editor-section>
 
-                <x-input name="mobile_1" label="Mobile 1" placeholder="98110-22334" />
-                <x-input name="mobile_2" label="Mobile 2 (office)" placeholder="0120-4567890" />
+            {{-- 2. Company Branding --}}
+            <x-editor-section :number="2" title="Company Branding" hint="How the header looks">
+                <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                    <div class="sm:col-span-2">
+                        <label class="text-[12.5px] font-semibold text-app-muted">
+                            Logo <span class="font-medium text-app-faint">(optional)</span>
+                        </label>
 
-                <x-input name="stamp_place" label="Stamp / City Place" placeholder="e.g. Noida (U.P.)" class="sm:col-span-2" hint="Appears inside the circular stamp on the quotation." />
+                        <div class="mt-1.5 flex items-stretch gap-3">
+                            <div class="flex size-16 shrink-0 items-center justify-center overflow-hidden rounded-[6px] border border-app-border bg-app-bg">
+                                @if ($template->logoUrl())
+                                    <img src="{{ $template->logoUrl() }}" alt="Current logo" class="size-full object-contain">
+                                @else
+                                    <span class="text-[11px] text-app-faint">No logo</span>
+                                @endif
+                            </div>
 
-                <x-textarea name="address" label="Address" rows="2" class="sm:col-span-2" placeholder="Full business address" />
-            </div>
-        </x-card>
-
-        {{-- STEP 2: Company Branding --}}
-        <x-card x-show="step === 2">
-            <h3 class="mb-1 text-[15px] font-bold">2. Company Branding</h3>
-            <p class="mb-4 text-[12.5px] text-app-muted">How the letterhead looks on every quotation from this template.</p>
-
-            <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                <div class="sm:col-span-2">
-                    <label class="text-xs font-medium text-app-muted">Logo <span class="text-app-faint">(optional)</span></label>
-                    <div class="mt-1.5 flex items-start gap-4">
-                        <div class="flex size-20 shrink-0 items-center justify-center overflow-hidden rounded-[8px] border border-dashed border-app-border bg-app-neutral-soft">
-                            @if ($template->logoUrl())
-                                <img src="{{ $template->logoUrl() }}" alt="Current logo" class="max-h-full max-w-full object-contain">
-                            @else
-                                <span class="text-[11px] text-app-faint">No logo</span>
-                            @endif
+                            <div class="flex min-w-0 flex-1 flex-col justify-center gap-1 rounded-[6px] border-[1.5px] border-dashed border-[#cfd5df] bg-app-bg px-3 py-2 text-center">
+                                <input type="file" name="logo" accept="image/png,image/jpeg,image/svg+xml,image/webp"
+                                    class="block w-full cursor-pointer text-[12.5px] text-app-muted file:mr-2 file:cursor-pointer file:rounded-[5px] file:border-0 file:bg-transparent file:px-0 file:text-[12.5px] file:font-semibold file:text-app-accent">
+                                <p class="text-[11.5px] text-app-faint">PNG, JPG, SVG or WebP, up to 2 MB</p>
+                                @error('logo') <p class="text-[12px] text-app-danger">{{ $message }}</p> @enderror
+                            </div>
                         </div>
-                        <div class="flex-1">
-                            <input type="file" name="logo" accept="image/png,image/jpeg,image/svg+xml,image/webp"
-                                class="block w-full cursor-pointer rounded-[6px] border border-app-border bg-white text-[13px] file:mr-3 file:cursor-pointer file:rounded-l-[6px] file:border-0 file:bg-app-neutral-soft file:px-3 file:py-2 file:text-[13px] file:font-semibold file:text-app-muted hover:file:bg-app-border">
-                            <p class="mt-1 text-xs text-app-faint">PNG, JPG, SVG or WebP, up to 2 MB.</p>
-                            @if ($template->logo_path)
-                                <label class="mt-2 inline-flex items-center gap-1.5 text-xs text-app-muted">
-                                    <input type="checkbox" name="remove_logo" value="1" class="rounded-[4px] border-app-border text-app-danger focus:ring-app-danger/30">
-                                    Remove current logo
-                                </label>
-                            @endif
-                            @error('logo') <p class="mt-1 text-xs text-app-danger">{{ $message }}</p> @enderror
+
+                        @if ($template->logo_path)
+                            <label class="mt-2 inline-flex items-center gap-1.5 text-[12px] text-app-muted">
+                                <input type="checkbox" name="remove_logo" value="1" class="rounded-[4px] border-app-border text-app-danger focus:ring-app-danger/30">
+                                Remove current logo
+                            </label>
+                        @endif
+                    </div>
+
+                    <div class="sm:col-span-2">
+                        <x-input name="letterhead_display_name" label="Company name on letterhead" placeholder="Same as Client / Company Name" :value="old('letterhead_display_name', $template->letterhead_display_name)" />
+                        <p class="mt-1 text-[12px] text-app-faint">Leave blank to print the company name above. Use this for a shorter or stylised name.</p>
+                    </div>
+
+                    {{-- Header alignment (prototype .seg) --}}
+                    <div>
+                        <span class="text-[12.5px] font-semibold text-app-muted">Header alignment</span>
+                        <div class="mt-1.5 inline-flex gap-0.5 rounded-[6px] bg-app-neutral-soft p-[3px]" role="radiogroup" aria-label="Header alignment">
+                            @foreach (HeaderAlignment::cases() as $option)
+                                <button type="button" role="radio"
+                                    x-on:click="alignment = '{{ $option->value }}'"
+                                    x-bind:aria-checked="alignment === '{{ $option->value }}'"
+                                    x-bind:class="alignment === '{{ $option->value }}' ? 'bg-white font-semibold text-app-text' : 'font-medium text-app-muted hover:text-app-text'"
+                                    class="rounded-[5px] px-3 py-1.5 text-[12.5px] transition-colors"
+                                >{{ $option->label() }}</button>
+                            @endforeach
                         </div>
+                        <input type="hidden" name="header_alignment" x-bind:value="alignment">
+                    </div>
+
+                    {{-- Accent colour (prototype .swatches) --}}
+                    <div>
+                        <span class="text-[12.5px] font-semibold text-app-muted">Accent colour</span>
+                        <div class="mt-1.5 flex flex-wrap gap-2">
+                            @foreach (AccentPalette::cases() as $option)
+                                <button type="button" title="{{ $option->label() }}" aria-label="{{ $option->label() }}"
+                                    x-on:click="accent = '{{ $option->value }}'"
+                                    x-bind:style="`background: {{ $option->colours()['ink'] }}`"
+                                    x-bind:class="accent === '{{ $option->value }}' ? 'ring-2 ring-app-text ring-offset-2' : ''"
+                                    class="size-7 rounded-full border-2 border-white shadow-[0_0_0_1px_rgba(228,231,236,1)]"
+                                ></button>
+                            @endforeach
+                        </div>
+                        <input type="hidden" name="accent_color" x-bind:value="accent">
                     </div>
                 </div>
+            </x-editor-section>
 
-                <x-input name="letterhead_display_name" label="Company name on letterhead" class="sm:col-span-2" placeholder="Leave blank to use the business name" hint="Use this for a shorter or stylised name." />
+            {{-- 3. Quote Settings --}}
+            <x-editor-section :number="3" title="Quote Settings" hint="Pre-filled on every new quote">
+                <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                    <x-input name="doc_title" label="Default quotation title" placeholder="QUOTATION / PROFORMA INVOICE" :value="old('doc_title', $template->doc_title)" />
 
-                <div>
-                    <span class="text-xs font-medium text-app-muted">Header alignment</span>
-                    <div class="mt-1.5 inline-flex rounded-[8px] border border-app-border bg-white p-0.5" role="radiogroup" aria-label="Header alignment">
-                        @foreach (HeaderAlignment::cases() as $case)
-                            <button
-                                type="button"
-                                role="radio"
-                                x-on:click="alignment = '{{ $case->value }}'"
-                                x-bind:aria-checked="alignment === '{{ $case->value }}'"
-                                class="rounded-[6px] px-3 py-1.5 text-[13px] font-semibold transition-colors"
-                                x-bind:class="alignment === '{{ $case->value }}' ? 'bg-app-accent-soft text-app-accent' : 'text-app-muted hover:text-app-text'"
-                            >{{ $case->label() }}</button>
+                    <x-select name="default_gst_rate" label="Default GST rate" :value="old('default_gst_rate', $template->default_gst_rate)">
+                        @foreach ([0, 5, 12, 18, 28] as $rate)
+                            <option value="{{ $rate }}">{{ $rate }}%</option>
                         @endforeach
+                    </x-select>
+
+                    <div class="sm:col-span-2">
+                        <x-textarea name="intro_message" label="Default introductory message" rows="3"
+                            placeholder="While thanking you for your esteemed enquiry no. {enquiry_no} dated {enquiry_date}, we submit our lowest rates…"
+                            :value="old('intro_message', $template->intro_message)" />
+
+                        <p class="mt-2 flex flex-wrap items-center gap-1.5 text-[12px] text-app-faint">
+                            Insert:
+                            <code class="rounded-[5px] border border-app-border bg-app-bg px-1.5 py-0.5 font-mono text-[11.5px] text-app-muted">{client_name}</code>
+                            <code class="rounded-[5px] border border-app-border bg-app-bg px-1.5 py-0.5 font-mono text-[11.5px] text-app-muted">{enquiry_no}</code>
+                            <code class="rounded-[5px] border border-app-border bg-app-bg px-1.5 py-0.5 font-mono text-[11.5px] text-app-muted">{enquiry_date}</code>
+                        </p>
                     </div>
-                    <input type="hidden" name="header_alignment" x-bind:value="alignment">
-                </div>
 
-                <div>
-                    <span class="text-xs font-medium text-app-muted">Accent colour</span>
-                    <div class="mt-1.5 flex flex-wrap gap-2" role="radiogroup" aria-label="Accent colour">
-                        @foreach (AccentPalette::cases() as $palette)
-                            <button
-                                type="button"
-                                role="radio"
-                                title="{{ $palette->label() }}"
-                                aria-label="{{ $palette->label() }}"
-                                x-on:click="accent = '{{ $palette->value }}'"
-                                x-bind:aria-checked="accent === '{{ $palette->value }}'"
-                                class="size-7 rounded-full ring-offset-2 transition-all"
-                                x-bind:class="accent === '{{ $palette->value }}' ? 'ring-2 ring-app-text scale-110' : 'ring-1 ring-app-border'"
-                                style="background: {{ $palette->colours()['ink'] }}"
-                            ></button>
-                        @endforeach
+                    <div class="sm:col-span-2">
+                        <x-textarea name="extra_terms" label="Default terms &amp; conditions" rows="3"
+                            placeholder="Payment after installation against bill.&#10;Goods once sold will not be taken back."
+                            :value="old('extra_terms', $template->extra_terms)" />
+                        <p class="mt-1 text-[12px] text-app-faint">One condition per line. GST, delivery, warranty and validity are added automatically.</p>
                     </div>
-                    <input type="hidden" name="accent_color" x-bind:value="accent">
-                    <p class="mt-1 text-xs text-app-faint">Sets the ink colour of the whole quotation.</p>
+
+                    <x-input name="delivery_period" label="Default delivery period" placeholder="30 days from purchase order" :value="old('delivery_period', $template->delivery_period)" />
+                    <x-input name="warranty" label="Default warranty" placeholder="Three years onsite" :value="old('warranty', $template->warranty)" />
+
+                    <x-input name="validity_text" label="Default offer validity" placeholder="10 days from the above date" :value="old('validity_text', $template->validity_text)" />
+                    <x-input name="notes" label="Default notes (optional)" placeholder="e.g. Freight extra as applicable" :value="old('notes', $template->notes)" />
                 </div>
-            </div>
-        </x-card>
+            </x-editor-section>
 
-        {{-- STEP 3: Quote Settings --}}
-        <x-card x-show="step === 3">
-            <h3 class="mb-1 text-[15px] font-bold">3. Quote Settings</h3>
-            <p class="mb-4 text-[12.5px] text-app-muted">Pre-filled on every new quotation created from this template.</p>
+            {{-- 4. Footer & Signature --}}
+            <x-editor-section :number="4" title="Footer & Signature" hint="Bottom-right of the quote">
+                <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                    <x-input name="authorized_person" label="Authorized person name" placeholder="Vikram Thakur" :value="old('authorized_person', $template->authorized_person)" />
+                    <x-input name="designation" label="Designation" placeholder="Proprietor" :value="old('designation', $template->designation)" />
 
-            <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                <x-input name="doc_title" label="Default quotation title" required list="doc-title-list" placeholder="QUOTATION" />
-                <datalist id="doc-title-list">
-                    <option value="QUOTATION"></option>
-                    <option value="QUOTATION / PROFORMA INVOICE"></option>
-                    <option value="PROFORMA INVOICE"></option>
-                    <option value="ESTIMATE"></option>
-                </datalist>
+                    <div class="sm:col-span-2">
+                        <label class="text-[12.5px] font-semibold text-app-muted">Signature <span class="font-medium text-app-faint">(optional)</span></label>
 
-                <x-select
-                    name="default_gst_rate"
-                    label="Default GST rate"
-                    required
-                    :options="['0' => '0% (Exempt)', '5' => '5%', '12' => '12%', '18' => '18%', '28' => '28%']"
-                />
+                        <div class="mt-1.5 flex items-stretch gap-3">
+                            <div class="flex size-16 shrink-0 items-center justify-center overflow-hidden rounded-[6px] border border-app-border bg-app-bg">
+                                @if ($template->signatureUrl())
+                                    <img src="{{ $template->signatureUrl() }}" alt="Current signature" class="size-full object-contain">
+                                @else
+                                    <span class="text-[11px] text-app-faint">No signature</span>
+                                @endif
+                            </div>
 
-                <div class="flex items-end pb-1">
-                    <label class="flex items-center gap-2 text-[13px] text-app-muted">
-                        <input type="checkbox" name="is_default" value="1" @checked(old('is_default', $template->is_default)) class="rounded-[4px] border-app-border text-app-accent focus:ring-app-accent/30">
-                        Use as the default template
+                            <div class="flex min-w-0 flex-1 flex-col justify-center gap-1 rounded-[6px] border-[1.5px] border-dashed border-[#cfd5df] bg-app-bg px-3 py-2 text-center">
+                                <input type="file" name="signature" accept="image/png,image/jpeg,image/svg+xml,image/webp"
+                                    class="block w-full cursor-pointer text-[12.5px] text-app-muted file:mr-2 file:cursor-pointer file:rounded-[5px] file:border-0 file:bg-transparent file:px-0 file:text-[12.5px] file:font-semibold file:text-app-accent">
+                                <p class="text-[11.5px] text-app-faint">Transparent PNG works best, up to 2 MB</p>
+                                @error('signature') <p class="text-[12px] text-app-danger">{{ $message }}</p> @enderror
+                            </div>
+                        </div>
+
+                        @if ($template->signature_path)
+                            <label class="mt-2 inline-flex items-center gap-1.5 text-[12px] text-app-muted">
+                                <input type="checkbox" name="remove_signature" value="1" class="rounded-[4px] border-app-border text-app-danger focus:ring-app-danger/30">
+                                Remove current signature
+                            </label>
+                        @endif
+                    </div>
+
+                    <div class="sm:col-span-2">
+                        <label class="text-[12.5px] font-semibold text-app-muted">Company stamp <span class="font-medium text-app-faint">(optional)</span></label>
+
+                        <div class="mt-1.5 flex items-stretch gap-3">
+                            <div class="flex size-16 shrink-0 items-center justify-center overflow-hidden rounded-[6px] border border-app-border bg-app-bg">
+                                @if ($template->companyStampUrl())
+                                    <img src="{{ $template->companyStampUrl() }}" alt="Current stamp" class="size-full object-contain">
+                                @else
+                                    <span class="text-[11px] text-app-faint">No stamp</span>
+                                @endif
+                            </div>
+
+                            <div class="flex min-w-0 flex-1 flex-col justify-center gap-1 rounded-[6px] border-[1.5px] border-dashed border-[#cfd5df] bg-app-bg px-3 py-2 text-center">
+                                <input type="file" name="company_stamp" accept="image/png,image/jpeg,image/svg+xml,image/webp"
+                                    class="block w-full cursor-pointer text-[12.5px] text-app-muted file:mr-2 file:cursor-pointer file:rounded-[5px] file:border-0 file:bg-transparent file:px-0 file:text-[12.5px] file:font-semibold file:text-app-accent">
+                                <p class="text-[11.5px] text-app-faint">Round seal image, PNG or JPG, up to 2 MB</p>
+                                @error('company_stamp') <p class="text-[12px] text-app-danger">{{ $message }}</p> @enderror
+                            </div>
+                        </div>
+
+                        @if ($template->company_stamp_path)
+                            <label class="mt-2 inline-flex items-center gap-1.5 text-[12px] text-app-muted">
+                                <input type="checkbox" name="remove_company_stamp" value="1" class="rounded-[4px] border-app-border text-app-danger focus:ring-app-danger/30">
+                                Remove current stamp
+                            </label>
+                        @endif
+                    </div>
+
+                    <label class="flex items-center gap-2 text-[12.5px] text-app-muted sm:col-span-2">
+                        <input type="checkbox" name="use_generated_seal" value="1"
+                            @checked(old('use_generated_seal', $template->use_generated_seal ?? true))
+                            class="rounded-[4px] border-app-border text-app-accent focus:ring-app-accent/30">
+                        Use a generated seal when no stamp is uploaded
                     </label>
+
+                    <x-input name="stamp_place" label="Seal city / text" class="sm:col-span-2" placeholder="Shimla (H.P.)" :value="old('stamp_place', $template->stamp_place)" />
                 </div>
+            </x-editor-section>
+        </form>
 
-                <x-textarea
-                    name="intro_message"
-                    label="Introductory message"
-                    rows="3"
-                    class="sm:col-span-2"
-                    placeholder="While thanking you for your esteemed enquiry no. {enquiry_no} dated {enquiry_date}, we submit our lowest rates…"
-                    hint="Placeholders: {client_name}, {enquiry_no}, {enquiry_date} are replaced automatically."
-                />
+        {{-- Live A4 preview (sticky, right column) --}}
+        <div class="min-w-0 xl:sticky xl:top-[76px]">
+            <div class="overflow-hidden rounded-[8px] border border-app-border bg-app-surface">
+                <div class="flex items-center justify-between gap-2 border-b border-app-border px-4 py-3">
+                    <h3 class="flex items-center gap-2 text-[13px] font-bold text-app-text">
+                        <span class="size-2 rounded-full bg-app-success" aria-hidden="true"></span>
+                        Live Preview
+                    </h3>
 
-                <x-input name="delivery_period" label="Delivery period" placeholder="2–3 weeks from purchase order" />
-                <x-input name="warranty" label="Warranty" placeholder="One year (manufacturer)" />
-                <x-input name="validity_text" label="Offer validity" placeholder="15 days from the above date" class="sm:col-span-2" />
-
-                <x-textarea name="extra_terms" label="Extra terms &amp; conditions" rows="3" class="sm:col-span-2" hint="One condition per line." placeholder="Payment: 50% advance, balance before delivery." />
-                <x-textarea name="notes" label="Notes" rows="2" class="sm:col-span-2" />
-            </div>
-        </x-card>
-
-        {{-- STEP 4: Footer & Signature --}}
-        <x-card x-show="step === 4">
-            <h3 class="mb-4 text-[15px] font-bold">4. Footer &amp; Signature</h3>
-
-            <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                <x-input name="authorized_person" label="Authorised person" placeholder="e.g. Rajesh Menon" />
-                <x-input name="designation" label="Designation" placeholder="e.g. Director" />
-
-                <div class="sm:col-span-2">
-                    <label class="text-xs font-medium text-app-muted">Signature / stamp image <span class="text-app-faint">(optional)</span></label>
-                    <div class="mt-1.5 flex items-start gap-4">
-                        <div class="flex h-16 w-40 shrink-0 items-center justify-center overflow-hidden rounded-[8px] border border-dashed border-app-border bg-app-neutral-soft">
-                            @if ($template->signatureUrl())
-                                <img src="{{ $template->signatureUrl() }}" alt="Current signature" class="max-h-full max-w-full object-contain">
-                            @else
-                                <span class="text-[11px] text-app-faint">No signature</span>
-                            @endif
-                        </div>
-                        <div class="flex-1">
-                            <input type="file" name="signature" accept="image/png,image/jpeg,image/svg+xml,image/webp"
-                                class="block w-full cursor-pointer rounded-[6px] border border-app-border bg-white text-[13px] file:mr-3 file:cursor-pointer file:rounded-l-[6px] file:border-0 file:bg-app-neutral-soft file:px-3 file:py-2 file:text-[13px] file:font-semibold file:text-app-muted hover:file:bg-app-border">
-                            <p class="mt-1 text-xs text-app-faint">PNG, JPG, SVG or WebP, up to 2 MB. A transparent PNG works best.</p>
-                            @if ($template->signature_path)
-                                <label class="mt-2 inline-flex items-center gap-1.5 text-xs text-app-muted">
-                                    <input type="checkbox" name="remove_signature" value="1" class="rounded-[4px] border-app-border text-app-danger focus:ring-app-danger/30">
-                                    Remove current signature
-                                </label>
-                            @endif
-                            @error('signature') <p class="mt-1 text-xs text-app-danger">{{ $message }}</p> @enderror
-                        </div>
+                    <div class="flex items-center gap-1" x-data="{ zoom: 100 }">
+                        <button type="button"
+                            class="rounded-[5px] border border-app-border px-2 py-1 text-[12px] font-semibold text-app-muted transition-colors hover:bg-app-neutral-soft"
+                            x-on:click="zoom = 100">Fit</button>
+                        <span class="w-11 text-center text-[12px] font-semibold tabular-nums text-app-muted" x-text="zoom + '%'">100%</span>
+                        <button type="button"
+                            class="flex size-6 items-center justify-center rounded-[5px] border border-app-border text-app-muted transition-colors hover:bg-app-neutral-soft"
+                            x-on:click="zoom = Math.min(140, zoom + 10)" aria-label="Zoom in">
+                            <x-icon name="plus" size="13" />
+                        </button>
                     </div>
                 </div>
-            </div>
-        </x-card>
 
-        {{-- Sticky action bar --}}
-        <div class="sticky bottom-0 flex flex-wrap items-center justify-between gap-3 rounded-[8px] border border-app-border bg-app-surface px-4 py-3 shadow-app-card">
-            <div class="text-[12.5px] text-app-muted">
-                Step <span class="font-semibold text-app-text" x-text="step"></span> of <span x-text="total"></span>
-            </div>
+                <p class="border-b border-app-border px-4 py-2 text-[11.5px] text-app-faint">
+                    A4, items and client are sample data
+                </p>
 
-            <div class="flex flex-wrap items-center gap-2">
-                <x-button type="button" variant="ghost" :href="route('templates.index')">Cancel</x-button>
-                <x-button type="button" variant="ghost" x-on:click="back()" x-show="step > 1">&larr; Back</x-button>
-                <x-button type="button" variant="subtle" x-on:click="next()" x-show="step < total">Next &rarr;</x-button>
-                <x-button type="submit">{{ $template->exists ? 'Save Changes' : 'Create Template' }}</x-button>
+                <div x-ref="preview" x-effect="applyInk()" class="max-h-[720px] overflow-auto bg-app-bg p-4">
+                    <div class="mx-auto origin-top"
+                        x-bind:style="`transform: scale(${zoom / 100}); width: ${210 * 96 / 25.4}px;`">
+                        <x-a4-sheet :doc="$previewDoc" />
+                    </div>
+                </div>
             </div>
         </div>
-    </form>
+    </div>
+
+    {{-- Sticky bottom bar --}}
+    <div class="sticky bottom-0 z-20 mt-5 flex flex-wrap items-center justify-between gap-3 rounded-[8px] border border-app-border bg-app-surface px-4 py-3 shadow-app-card">
+        <p class="text-[12.5px] text-app-faint">
+            @if ($isEdit)
+                Changes apply to new quotations only. Existing quotations keep their original snapshot.
+            @else
+                No changes yet
+            @endif
+        </p>
+
+        <div class="flex flex-wrap items-center gap-2">
+            <x-button :href="route('templates.index')" variant="ghost">Cancel</x-button>
+            <x-button type="submit" form="template-form" icon="save">Save Template</x-button>
+        </div>
+    </div>
 </x-app-layout>
