@@ -1,5 +1,9 @@
 import './bootstrap';
 
+import Alpine from 'alpinejs';
+
+window.Alpine = Alpine;
+
 /**
  * Quote builder (Phase 4, quoteflow_quote_builder.html).
  *
@@ -85,3 +89,6 @@ document.addEventListener('alpine:init', () => {
         },
     }));
 });
+
+// Alpine must be started LAST so the components registered above are known.
+Alpine.start();
