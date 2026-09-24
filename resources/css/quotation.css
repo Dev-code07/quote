@@ -1,0 +1,186 @@
+/* ==========================================================================
+   A4 quotation document styles.
+
+   SINGLE SOURCE OF TRUTH for the printable quotation.
+   - On screen: imported by app.css for the live preview.
+   - In PDF:    PdfService reads this file and injects it into
+                resources/views/pdf/quote.blade.php (Architecture.md 5.4),
+                because Dompdf cannot process a Vite bundle.
+
+   Layout zones follow docs/design.md section 5.
+   Accent colours arrive as CSS custom properties set per template.
+   ========================================================================== */
+
+.q-sheet {
+    --ink: #1f2f6b;
+    --ink-2: #3b4a82;
+    --ink-soft: #eef1fa;
+    --ink-line: #c9d0e6;
+    --paper-text: #1b2340;
+    --stamp: #5140b0;
+
+    width: 210mm;
+    min-height: 297mm;
+    margin: 0 auto;
+    padding: 9mm;
+    background: #fff;
+    box-shadow: 0 1px 2px rgb(15 23 42 / 0.08), 0 12px 32px rgb(15 23 42 / 0.16);
+    font-family: 'Hind', 'Segoe UI', Arial, sans-serif;
+    font-size: 13px;
+    line-height: 1.45;
+    color: var(--paper-text);
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+}
+
+.q-frame {
+    border: 2px solid var(--ink);
+    outline: 1px solid var(--ink);
+    outline-offset: 3px;
+    padding: 4px;
+    height: 100%;
+}
+
+.q-flow { display: flex; flex-direction: column; min-height: 100%; }
+
+/* --- top strip ------------------------------------------------------- */
+.q-strip {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 9px 16px;
+    border-bottom: 1px solid var(--ink-line);
+    font-size: 12px;
+    color: var(--ink-2);
+}
+.q-doc-title {
+    background: var(--ink);
+    color: #fff;
+    font-weight: 600;
+    font-size: 11.5px;
+    letter-spacing: 0.12em;
+    padding: 4px 14px 3px;
+    border-radius: 2px;
+    white-space: nowrap;
+}
+.q-strip b { color: var(--paper-text); font-weight: 600; }
+
+/* --- letterhead ------------------------------------------------------ */
+.q-head { padding: 16px 20px 12px; }
+.q-head.left { text-align: left; }
+.q-head.center { text-align: center; }
+.q-head.right { text-align: right; }
+
+.q-brand { display: flex; align-items: center; gap: 14px; justify-content: inherit; }
+.q-logo { width: 52px; height: 52px; object-fit: contain; }
+.q-company {
+    font-family: 'Zilla Slab', Rockwell, Georgia, serif;
+    font-weight: 700;
+    font-size: 40px;
+    line-height: 1;
+    letter-spacing: 0.03em;
+    color: var(--ink);
+}
+.q-company-rule { display: flex; align-items: center; gap: 10px; margin: 9px auto 7px; max-width: 540px; }
+.q-company-rule::before,
+.q-company-rule::after { content: ''; flex: 1; border-top: 3px double var(--ink); }
+.q-deals { font-size: 13px; font-weight: 600; padding: 0 6px; }
+.q-deals span { font-weight: 500; color: var(--ink-2); }
+.q-address { font-size: 12px; color: var(--ink-2); }
+
+/* --- reference band --------------------------------------------------- */
+.q-meta {
+    display: flex;
+    justify-content: space-between;
+    gap: 16px;
+    background: var(--ink-soft);
+    border-top: 1.5px solid var(--ink);
+    border-bottom: 1px solid var(--ink-line);
+    padding: 7px 16px;
+    font-size: 13px;
+}
+.q-meta b { font-weight: 700; color: var(--ink); font-variant-numeric: tabular-nums; }
+
+/* --- parties ---------------------------------------------------------- */
+.q-parties { display: flex; gap: 20px; padding: 12px 16px 6px; }
+.q-to { flex: 1.4; padding-left: 34px; }
+.q-side { flex: 1; font-size: 12px; color: var(--ink-2); align-self: end; }
+.q-to-label { font-size: 12px; color: var(--ink-2); margin-bottom: 2px; }
+.q-to .name { font-size: 16px; font-weight: 700; line-height: 1.3; }
+.q-to p { font-size: 12.5px; color: #3a4260; margin-top: 1px; }
+.q-side div { display: flex; justify-content: flex-end; gap: 8px; line-height: 1.8; }
+.q-side b { color: var(--paper-text); font-weight: 600; }
+
+/* --- intro ------------------------------------------------------------ */
+.q-letter { padding: 6px 16px 10px; font-size: 12.5px; color: #3a4260; }
+.q-letter .salute { color: var(--paper-text); margin-bottom: 2px; }
+.q-letter p { text-indent: 34px; }
+.q-fill { border-bottom: 1px dotted var(--ink-2); padding: 0 3px; }
+
+/* --- items table ------------------------------------------------------ */
+.q-table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+.q-table th,
+.q-table td { border: 1px solid var(--ink-line); padding: 6px 8px; vertical-align: top; }
+.q-table thead th { background: var(--ink); color: #fff; font-weight: 600; text-align: left; }
+.q-table .c { text-align: center; width: 62px; }
+.q-table .r { text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.q-table .desc { width: auto; }
+.q-table tfoot td { border: none; padding: 3px 8px; }
+.q-table tfoot .lbl { text-align: right; color: var(--ink-2); }
+.q-table tfoot .grand td { border-top: 1.5px solid var(--ink); padding-top: 6px; font-weight: 700; font-size: 13.5px; color: var(--ink); }
+.q-table tfoot .grand .r { font-size: 15px; }
+
+/* --- closing ---------------------------------------------------------- */
+.q-closing { padding: 10px 16px 14px; page-break-inside: avoid; }
+.q-words { font-size: 12.5px; margin-bottom: 8px; }
+.q-words b { color: var(--ink); }
+.q-terms { font-size: 11.5px; color: #3a4260; margin: 0 0 10px; padding-left: 16px; }
+.q-terms li { margin-bottom: 2px; }
+.q-sign { display: flex; justify-content: flex-end; gap: 40px; align-items: flex-end; margin-top: 14px; }
+.q-sign-block { text-align: center; min-width: 180px; }
+.q-sign-img { max-height: 60px; margin: 0 auto 4px; display: block; }
+.q-sign-rule { border-top: 1px solid var(--ink-2); margin-bottom: 4px; }
+.q-stamp {
+    border: 2px solid var(--stamp);
+    color: var(--stamp);
+    border-radius: 50%;
+    width: 96px;
+    height: 96px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    font-size: 10px;
+    font-weight: 600;
+    padding: 8px;
+    opacity: 0.85;
+}
+
+/* --- page footer ------------------------------------------------------ */
+.q-pagefoot {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    border-top: 1px solid var(--ink-line);
+    padding: 6px 14px 7px;
+    font-size: 10.5px;
+    color: #7a819c;
+    margin-top: auto;
+}
+.q-continue { font-size: 11.5px; color: #7a819c; font-style: italic; padding: 7px 16px 0; }
+.q-cont-head { padding: 14px 20px 11px; }
+.q-cont-head .n {
+    font-family: 'Zilla Slab', Rockwell, Georgia, serif;
+    font-weight: 700;
+    font-size: 20px;
+    color: var(--ink);
+}
+.q-cont-head .r { font-size: 12px; color: var(--ink-2); }
+
+/* --- print ------------------------------------------------------------ */
+@media print {
+    body { background: #fff; }
+    .q-sheet { box-shadow: none; margin: 0; page-break-after: always; }
+    .q-sheet:last-child { page-break-after: auto; }
+}

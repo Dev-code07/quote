@@ -1,4 +1,4 @@
-﻿# rules.md — Development Rules
+# rules.md — Development Rules
 
 Binding conventions for this codebase. If a rule here conflicts with a prototype's cosmetic detail, **the rule wins**; if it conflicts with a client decision, the client decision wins.
 
@@ -16,7 +16,8 @@ Binding conventions for this codebase. If a rule here conflicts with a prototype
 ## 2. Stack Rules (hard constraints)
 
 - PHP **8.3+**, Laravel **13.x**. Do not install packages that require PHP < 8.3.
-- Frontend: Blade + Tailwind + Alpine.js only. **No React, Vue, Livewire, jQuery UI, Bootstrap, or CDN CSS frameworks.**
+- Frontend: Blade + **Tailwind CSS v4** + Alpine.js only. **No React, Vue, Livewire, jQuery UI, Bootstrap, or CDN CSS frameworks.**
+- Tailwind is configured CSS-first via `@theme` in `resources/css/app.css`. There is no `tailwind.config.js` and no PostCSS config; do not reintroduce them.
 - PDF: Dompdf only. **Never** browser-screenshot-to-image, headless Chrome, or external PDF services.
 - Database: MySQL 8. No raw SQL migrations with MySQL-only tricks that break `migrate:fresh` in tests (SQLite is the test driver — keep migrations portable).
 - Infrastructure: file cache/session/sync queue. **No Redis, Horizon, Supervisor, Docker, or long-running Node process.**

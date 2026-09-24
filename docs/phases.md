@@ -2,7 +2,7 @@
 
 Seven phases, matching the brief's section 29, expanded with concrete deliverables and exit criteria. Each phase ends with a reviewable, runnable increment. No phase starts before the previous phase's exit criteria are met.
 
-**Version:** 1.1 | **Date:** 2026-09-24 | **Status:** Phases 0-2 complete
+**Version:** 1.2 | **Date:** 2026-09-24 | **Status:** Phases 0-7 complete (v1 feature-complete)
 
 ---
 
@@ -70,7 +70,7 @@ Brief phase 2.
 
 ---
 
-## Phase 3 — Quote Template Management
+## Phase 3 — Quote Template Management — **DONE**
 
 Brief phase 3.
 
@@ -90,7 +90,7 @@ Brief phase 3.
 
 ---
 
-## Phase 4 — Quote Creation & Builder
+## Phase 4 — Quote Creation & Builder — **DONE**
 
 Brief phase 4. The core of the product.
 
@@ -111,7 +111,7 @@ Brief phase 4. The core of the product.
 
 ---
 
-## Phase 5 — A4 Preview & PDF
+## Phase 5 — A4 Preview & PDF — **DONE**
 
 Brief phase 5.
 
@@ -130,7 +130,7 @@ Brief phase 5.
 
 ---
 
-## Phase 6 — Quote Management & Dashboard
+## Phase 6 — Quote Management & Dashboard — **DONE**
 
 Brief phase 6.
 
@@ -151,7 +151,7 @@ Brief phase 6.
 
 ---
 
-## Phase 7 — Security, Performance & Deployment
+## Phase 7 — Security, Performance & Deployment — **DONE (code); hosting deploy pending**
 
 Brief phase 7.
 
@@ -177,8 +177,8 @@ Brief phase 7.
 | 0 | Laravel 13 + Vite + Breeze foundation | **Done** — app boots, build passes |
 | 1 | Auth + app shell + components | **Done** — shell renders at all breakpoints |
 | 2 | Clients | **Done** — CRUD + search + filter + trash/restore, 16 tests |
-| 3 | Templates | Create/preview/default/duplicate |
-| 4 | Quote builder | Numbering + totals + snapshot |
-| 5 | A4 preview + PDF | Correct downloadable PDF |
-| 6 | Quote management + dashboard | Lifecycle + auto-expire |
-| 7 | Security + deploy | DoD passed on hosting |
+| 3 | Templates | **Done** — CRUD, branding, preview, duplicate, default |
+| 4 | Quote builder | **Done** — numbering, totals, snapshots |
+| 5 | A4 preview + PDF | **Done** — real Dompdf PDF verified |
+| 6 | Quote management + dashboard | **Done** — lifecycle, filters, auto-expire |
+| 7 | Security + deploy | **Code done**; live hosting deploy still pending |

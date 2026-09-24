@@ -1,0 +1,61 @@
+/* Self-hosted quotation fonts (assumption A5).
+   Dompdf cannot fetch a CDN at render time, so the TTFs live in public/fonts
+   and are registered here for on-screen preview and in
+   resources/views/pdf/quote.blade.php for PDF rendering. */
+
+@font-face {
+    font-family: 'Hind';
+    font-style: normal;
+    font-weight: 400;
+    font-display: swap;
+    src: url('/fonts/Hind-Regular.ttf') format('truetype');
+}
+@font-face {
+    font-family: 'Hind';
+    font-style: normal;
+    font-weight: 500;
+    font-display: swap;
+    src: url('/fonts/Hind-Medium.ttf') format('truetype');
+}
+@font-face {
+    font-family: 'Hind';
+    font-style: normal;
+    font-weight: 600;
+    font-display: swap;
+    src: url('/fonts/Hind-SemiBold.ttf') format('truetype');
+}
+@font-face {
+    font-family: 'Hind';
+    font-style: normal;
+    font-weight: 700;
+    font-display: swap;
+    src: url('/fonts/Hind-Bold.ttf') format('truetype');
+}
+@font-face {
+    font-family: 'Zilla Slab';
+    font-style: normal;
+    font-weight: 400;
+    font-display: swap;
+    src: url('/fonts/ZillaSlab-Regular.ttf') format('truetype');
+}
+@font-face {
+    font-family: 'Zilla Slab';
+    font-style: normal;
+    font-weight: 500;
+    font-display: swap;
+    src: url('/fonts/ZillaSlab-Medium.ttf') format('truetype');
+}
+@font-face {
+    font-family: 'Zilla Slab';
+    font-style: normal;
+    font-weight: 600;
+    font-display: swap;
+    src: url('/fonts/ZillaSlab-SemiBold.ttf') format('truetype');
+}
+@font-face {
+    font-family: 'Zilla Slab';
+    font-style: normal;
+    font-weight: 700;
+    font-display: swap;
+    src: url('/fonts/ZillaSlab-Bold.ttf') format('truetype');
+}

@@ -1,0 +1,7 @@
+# Dompdf font cache (see config/dompdf.php font_dir / font_cache).
+#
+# The directory must exist and be writable for PDF generation. Cached .ufm and
+# .afm files are build artefacts and are not committed; the self-hosted source
+# fonts live in public/fonts.
+*
+!.gitignore

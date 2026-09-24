@@ -1,8 +1,8 @@
-﻿# design.md — UI & A4 Document Design System
+# design.md — UI & A4 Document Design System
 
 Derived from the five client prototypes: `quoteflow_dashboard.html`, `quoteflow_quote_builder (1).html`, `quoteflow_templates.html`, `quoteflow_template_editor.html`, `quote_preview.html`.
 
-**Version:** 1.0 | **Date:** 2026-09-24 | **Status:** Draft
+**Version:** 1.1 | **Date:** 2026-09-24 | **Status:** Implemented
 
 The prototypes are the visual source of truth. Port them to Blade + Tailwind + Alpine using the tokens below — do not paste their inline CSS/JS.
 
