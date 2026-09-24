@@ -2,6 +2,13 @@
 
 namespace App\Providers;
 
+use App\Models\Client;
+use App\Models\Quote;
+use App\Models\QuoteTemplate;
+use App\Policies\ClientPolicy;
+use App\Policies\QuotePolicy;
+use App\Policies\QuoteTemplatePolicy;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\ServiceProvider;
 
 class AppServiceProvider extends ServiceProvider
@@ -19,6 +26,16 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
-        //
+        // Authorization is enforced through policies, never ad hoc in
+        // controllers (rules.md section 6). Quote policies arrive in Phase 4.
+        Gate::policy(Client::class, ClientPolicy::class);
+
+        if (class_exists(Quote::class)) {
+            Gate::policy(Quote::class, QuotePolicy::class);
+        }
+
+        if (class_exists(QuoteTemplate::class)) {
+            Gate::policy(QuoteTemplate::class, QuoteTemplatePolicy::class);
+        }
     }
 }

@@ -1,12 +1,12 @@
-﻿# phases.md — Development Phases
+# phases.md — Development Phases
 
 Seven phases, matching the brief's section 29, expanded with concrete deliverables and exit criteria. Each phase ends with a reviewable, runnable increment. No phase starts before the previous phase's exit criteria are met.
 
-**Version:** 1.0 | **Date:** 2026-09-24 | **Status:** Draft
+**Version:** 1.1 | **Date:** 2026-09-24 | **Status:** Phases 0-2 complete
 
 ---
 
-## Phase 0 — Foundation & Toolchain (prerequisite)
+## Phase 0 — Foundation & Toolchain (prerequisite) — **DONE**
 
 The brief requires the latest stable Laravel on PHP 8.3 with Vite; the repository holds a Laravel 8 skeleton on PHP 7.4. This phase removes that gap.
 
@@ -29,7 +29,7 @@ The brief requires the latest stable Laravel on PHP 8.3 with Vite; the repositor
 
 ---
 
-## Phase 1 — Project Setup, Auth & Layout
+## Phase 1 — Project Setup, Auth & Layout — **DONE**
 
 Brief phase 1. Establish structure, authentication, and the app shell.
 
@@ -50,7 +50,7 @@ Brief phase 1. Establish structure, authentication, and the app shell.
 
 ---
 
-## Phase 2 — Client Management
+## Phase 2 — Client Management — **DONE**
 
 Brief phase 2.
 
@@ -174,9 +174,9 @@ Brief phase 7.
 
 | Phase | Focus | Key exit test |
 |---|---|---|
-| 0 | Laravel 13 + Vite + Breeze foundation | App boots, build passes |
-| 1 | Auth + app shell + components | Login -> shell renders |
-| 2 | Clients | CRUD + search + trash |
+| 0 | Laravel 13 + Vite + Breeze foundation | **Done** — app boots, build passes |
+| 1 | Auth + app shell + components | **Done** — shell renders at all breakpoints |
+| 2 | Clients | **Done** — CRUD + search + filter + trash/restore, 16 tests |
 | 3 | Templates | Create/preview/default/duplicate |
 | 4 | Quote builder | Numbering + totals + snapshot |
 | 5 | A4 preview + PDF | Correct downloadable PDF |
