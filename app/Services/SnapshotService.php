@@ -55,6 +55,8 @@ class SnapshotService
             'stamp_place' => $template->stamp_place,
             'logo_url' => $template->logoUrl(),
             'signature_url' => $template->signatureUrl(),
+            'stamp_url' => $template->companyStampUrl(),
+            'generated_seal' => (bool) $template->use_generated_seal,
             'authorized_person' => $template->authorized_person,
             'designation' => $template->designation,
             'accent_color' => $template->accent_color?->value,

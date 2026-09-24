@@ -1,14 +1,26 @@
 {{--
     A4 quotation sheet.
 
-    Renders from a normalised `doc` array so the same markup serves the template
-    preview (sample data), the quote preview and the PDF. Styling lives in
-    resources/css/quotation.css.
+    ONE component for the template editor preview, the quote preview and the
+    on-screen print view, so the three can never disagree (Architecture.md 5.4).
+    The PDF uses the same structure via resources/views/pdf/quote.blade.php and
+    the same stylesheet (resources/css/quotation.css).
+
+    Markup mirrors docs/quote_preview.html, function firstHeader():
+
+      q-strip   GSTIN (left) | document title (centre) | mobile (right)
+      q-head    brand + company rule + address
+      q-meta    reference number + date
+      q-parties To / client ................ valid-until, phone, email
+      q-letter  salutation + intro
+      q-table   items + totals
+      q-closing amount in words, terms, seal + signature, thank-you line
+      q-pagefoot company name | page count
 
     Expected $doc shape:
-      company : name, display_name, gstin, tagline, address, email, mobile_1,
-                mobile_2, stamp_place, logo_url, signature_url,
-                authorized_person, designation
+      company : name, display_name, company_gstin, tagline, address, email,
+                mobile_1, mobile_2, stamp_place, logo_url, signature_url,
+                stamp_url, generated_seal, authorized_person, designation
       accent  : ink, ink2, soft, line
       align   : left|center|right
       doc_title
@@ -17,6 +29,9 @@
       items   : [position, description, qty, rate, amount]
       totals  : subtotal, discount, gst_rate, gst_amount, grand_total, words
       terms   : intro, delivery, warranty, validity, extra[], notes
+
+    Every interpolated value is escaped with {{ }}. The only raw output is
+    nl2br(e(...)) on user text that legitimately contains line breaks.
 --}}
 @props(['doc', 'preview' => true])
 
@@ -37,6 +52,37 @@
     );
 
     $money = fn ($v) => '₹'.number_format((float) $v, 2);
+    $rate = fn ($v) => rtrim(rtrim(number_format((float) $v, 2), '0'), '.');
+    $sampleClient = $client['name'] ?: 'Govt. Senior Secondary School';
+
+    /*
+     * Intro tokens. Enquiry no./date are shown as blank dotted fill-ins, the
+     * client name as a highlighted sample, exactly as the prototype does.
+     */
+    $intro = $terms['intro'] ?? 'While thanking you for your esteemed enquiry no. {enquiry_no} dated {enquiry_date}, we submit our lowest rates as under for favour of acceptance, subject to the terms and conditions given below.';
+    $intro = strtr(e($intro), [
+        '{enquiry_no}' => '<span class="q-fill"></span>',
+        '{enquiry_date}' => '<span class="q-fill"></span>',
+        '{client_name}' => '<span class="q-sample">'.e($sampleClient).'</span>',
+    ]);
+
+    /* Terms list, GST line first and emphasised (prototype li.key). */
+    $keyTerm = ($totals['gst_rate'] ?? 0) > 0
+        ? 'GST extra @ '.$rate($totals['gst_rate']).'% (included in Grand Total above)'
+        : null;
+    $otherTerms = array_values(array_filter([
+        ! empty($terms['delivery']) ? 'Delivery period: '.$terms['delivery'] : null,
+        ! empty($terms['warranty']) ? 'Warranty: '.$terms['warranty'] : null,
+        ! empty($terms['validity']) ? 'Validity of this offer: '.$terms['validity'] : null,
+        ...$extra,
+        ! empty($terms['notes']) ? $terms['notes'] : null,
+    ]));
+
+    /* Seal: an uploaded stamp wins, otherwise a generated one when enabled. */
+    $sealText = trim(($company['name'] ?? '').' '.($company['stamp_place'] ?? ''));
+    $hasStampImage = ! empty($company['stamp_url']);
+    $generatedSeal = ! $hasStampImage && ($company['generated_seal'] ?? false);
+    $sealEmpty = ! $hasStampImage && ! $generatedSeal;
 @endphp
 
 <div class="q-sheet" style="{{ $style }}" @if ($preview) data-preview-sheet @endif>
@@ -45,43 +91,37 @@
 
             {{-- 1. Top strip --}}
             <div class="q-strip">
-                <div>
-                    <b>Ph.</b> {{ $company['mobile_1'] ?? '' }}
-                    @if (! empty($company['email']))
-                        &nbsp;|&nbsp; <b>E-mail:</b> {{ $company['email'] }}
-                    @endif
-                </div>
+                <div>GSTIN: <b>{{ $company['company_gstin'] ?: '—' }}</b></div>
                 <div class="q-doc-title">{{ $doc['doc_title'] ?? 'QUOTATION' }}</div>
-                <div style="text-align: right">
-                    <b>Date:</b> {{ $meta['date'] ?? '—' }}
+                <div class="q-mob">
+                    Mob. <b>{{ $company['mobile_1'] ?: '—' }}</b>
+                    @if (! empty($company['mobile_2']))
+                        <br>{{ $company['mobile_2'] }}
+                    @endif
                 </div>
             </div>
 
             {{-- 2. Letterhead --}}
             <div class="q-head {{ $align }}">
-                <div style="display: flex; align-items: center; gap: 14px; justify-content: {{ $align === 'left' ? 'flex-start' : ($align === 'right' ? 'flex-end' : 'center') }};">
+                <div class="q-brand">
                     @if (! empty($company['logo_url']))
-                        <img src="{{ $company['logo_url'] }}" alt="" class="q-logo">
+                        <img src="{{ $company['logo_url'] }}" alt="" class="q-logo" data-q-part="logo">
                     @endif
-                    <div>
-                        <div class="q-company">{{ $company['display_name'] ?? ($company['name'] ?? 'Company') }}</div>
-                    </div>
+                    <div class="q-company">{{ $company['display_name'] ?: ($company['name'] ?? 'Company') }}</div>
                 </div>
 
-                <div class="q-company-rule"></div>
+                <div class="q-company-rule">
+                    @if (! empty($company['tagline']))
+                        <div class="q-deals">Deals in: <span>{{ $company['tagline'] }}</span></div>
+                    @endif
+                </div>
 
-                @if (! empty($company['tagline']))
-                    <div class="q-deals">Deals in: <span>{{ $company['tagline'] }}</span></div>
-                @endif
-
-                @if (! empty($company['address']) || ! empty($company['company_gstin']))
-                    <div class="q-address">
-                        {{ $company['address'] ?? '' }}
-                        @if (! empty($company['company_gstin']))
-                            &nbsp;|&nbsp; GSTIN: {{ $company['company_gstin'] }}
-                        @endif
-                    </div>
-                @endif
+                <div class="q-address">
+                    {{ $company['address'] ?? '' }}
+                    @if (! empty($company['email']))
+                        &nbsp;|&nbsp; E-mail: {{ $company['email'] }}
+                    @endif
+                </div>
             </div>
 
             {{-- 3. Reference band --}}
@@ -92,15 +132,17 @@
 
             {{-- 4. Parties --}}
             <div class="q-parties">
-                <div class="q-to">
+                <div>
                     <div class="q-to-label">To</div>
-                    <div class="name">{{ $client['name'] ?? '—' }}</div>
-                    @if (! empty($client['address']))
-                        <p>{!! nl2br(e($client['address'])) !!}</p>
-                    @endif
-                    @if (! empty($client['gstin']))
-                        <p>GSTIN: {{ $client['gstin'] }}</p>
-                    @endif
+                    <div class="q-to">
+                        <div class="name">{{ $client['name'] ?? '—' }}</div>
+                        @if (! empty($client['address']))
+                            <p>{!! nl2br(e($client['address'])) !!}</p>
+                        @endif
+                        @if (! empty($client['gstin']))
+                            <p>GSTIN: {{ $client['gstin'] }}</p>
+                        @endif
+                    </div>
                 </div>
                 <div class="q-side">
                     @if (! empty($client['phone']))
@@ -116,62 +158,75 @@
             {{-- 5. Intro --}}
             <div class="q-letter">
                 <div class="salute">Dear Sir/Madam,</div>
-                <p>{!! nl2br(e($terms['intro'] ?? 'While thanking you for your esteemed enquiry, we submit our lowest rates as under for favour of acceptance, subject to the terms and conditions given below.')) !!}</p>
+                <p>{!! $intro !!}</p>
             </div>
 
             {{-- 6. Items --}}
-            <table class="q-table">
-                <thead>
-                    <tr>
-                        <th class="c">Sr. No.</th>
-                        <th class="desc">Item Description</th>
-                        <th class="c">Qty.</th>
-                        <th class="r">Rate (₹)</th>
-                        <th class="r">Amount (₹)</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    @forelse ($items as $item)
+            <div class="q-table-wrap">
+                <table class="q-table">
+                    <colgroup>
+                        <col style="width: 62px">
+                        <col>
+                        <col style="width: 62px">
+                        <col style="width: 104px">
+                        <col style="width: 122px">
+                    </colgroup>
+                    <thead>
                         <tr>
-                            <td class="c">{{ str_pad((string) ($item['position'] ?? $loop->iteration), 2, '0', STR_PAD_LEFT) }}</td>
-                            <td class="desc">{{ $item['description'] ?? '—' }}</td>
-                            <td class="c">{{ rtrim(rtrim(number_format((float) ($item['qty'] ?? 0), 2), '0'), '.') }}</td>
-                            <td class="r">{{ $money($item['rate'] ?? 0) }}</td>
-                            <td class="r">{{ $money($item['amount'] ?? 0) }}</td>
+                            <th class="c">Sr. No.</th>
+                            <th>Item Description</th>
+                            <th class="c">Qty.</th>
+                            <th class="r">Rate (₹)</th>
+                            <th class="r">Amount (₹)</th>
                         </tr>
-                    @empty
-                        <tr>
-                            <td colspan="5" style="text-align: center; color: #7a819c; padding: 14px;">
-                                No items added yet.
-                            </td>
-                        </tr>
-                    @endforelse
-                </tbody>
-                @if ($items)
-                    <tfoot>
-                        <tr>
-                            <td colspan="4" class="lbl">Sub Total</td>
-                            <td class="r">{{ $money($totals['subtotal'] ?? 0) }}</td>
-                        </tr>
-                        @if (($totals['discount'] ?? 0) > 0)
+                    </thead>
+                    <tbody>
+                        @forelse ($items as $item)
                             <tr>
-                                <td colspan="4" class="lbl">Less: Discount</td>
-                                <td class="r">− {{ $money($totals['discount']) }}</td>
+                                <td class="c">{{ str_pad((string) ($item['position'] ?? $loop->iteration), 2, '0', STR_PAD_LEFT) }}</td>
+                                <td class="desc">{{ $item['description'] ?? '—' }}</td>
+                                <td class="c">{{ $rate($item['qty'] ?? 0) }}</td>
+                                <td class="r">{{ $money($item['rate'] ?? 0) }}</td>
+                                <td class="r">{{ $money($item['amount'] ?? 0) }}</td>
                             </tr>
-                        @endif
-                        @if (($totals['gst_rate'] ?? 0) > 0)
+                        @empty
                             <tr>
-                                <td colspan="4" class="lbl">GST @ {{ rtrim(rtrim(number_format((float) $totals['gst_rate'], 2), '0'), '.') }}%</td>
-                                <td class="r">{{ $money($totals['gst_amount'] ?? 0) }}</td>
+                                <td colspan="5" class="desc">No items added yet.</td>
                             </tr>
+                        @endforelse
+
+                        {{-- Stretched by JS so the ruled table reaches the page
+                             foot, as in the prototype. Screen preview only. --}}
+                        @if ($preview)
+                            <tr class="q-filler" data-q-fill><td></td><td></td><td></td><td></td><td></td></tr>
                         @endif
-                        <tr class="grand">
-                            <td colspan="4" class="lbl">Grand Total</td>
-                            <td class="r">{{ $money($totals['grand_total'] ?? 0) }}</td>
-                        </tr>
-                    </tfoot>
-                @endif
-            </table>
+                    </tbody>
+                    @if ($items)
+                        <tfoot>
+                            <tr>
+                                <td colspan="4" class="lbl">Sub Total</td>
+                                <td class="r">{{ $money($totals['subtotal'] ?? 0) }}</td>
+                            </tr>
+                            @if (($totals['discount'] ?? 0) > 0)
+                                <tr>
+                                    <td colspan="4" class="lbl">Less: Discount</td>
+                                    <td class="r">− {{ $money($totals['discount']) }}</td>
+                                </tr>
+                            @endif
+                            @if (($totals['gst_rate'] ?? 0) > 0)
+                                <tr>
+                                    <td colspan="4" class="lbl">GST @ {{ $rate($totals['gst_rate']) }}%</td>
+                                    <td class="r">{{ $money($totals['gst_amount'] ?? 0) }}</td>
+                                </tr>
+                            @endif
+                            <tr class="grand">
+                                <td colspan="4" class="lbl">Grand Total</td>
+                                <td class="r">{{ $money($totals['grand_total'] ?? 0) }}</td>
+                            </tr>
+                        </tfoot>
+                    @endif
+                </table>
+            </div>
 
             {{-- 7. Closing --}}
             @if ($items)
@@ -180,63 +235,65 @@
                         Amount in words: <b>{{ $totals['words'] ?? '' }}</b>
                     </div>
 
-                    @php
-                        $termLines = [];
-                        if (($totals['gst_rate'] ?? 0) > 0) {
-                            $termLines[] = 'GST extra @ '.$totals['gst_rate'].'% (included in Grand Total above)';
-                        }
-                        if (! empty($terms['delivery'])) {
-                            $termLines[] = 'Delivery period: '.$terms['delivery'];
-                        }
-                        if (! empty($terms['warranty'])) {
-                            $termLines[] = 'Warranty: '.$terms['warranty'];
-                        }
-                        if (! empty($terms['validity'])) {
-                            $termLines[] = 'Validity of this offer: '.$terms['validity'];
-                        }
-                        foreach ($extra as $line) {
-                            $termLines[] = $line;
-                        }
-                        if (! empty($terms['notes'])) {
-                            $termLines[] = $terms['notes'];
-                        }
-                    @endphp
+                    <div class="q-foot">
+                        <div class="q-terms">
+                            <h4>Terms &amp; Conditions</h4>
+                            <ol>
+                                @if ($keyTerm)
+                                    <li class="key">{{ $keyTerm }}</li>
+                                @endif
+                                @foreach ($otherTerms as $line)
+                                    <li>{{ $line }}</li>
+                                @endforeach
+                                @if (! $keyTerm && ! $otherTerms)
+                                    <li>—</li>
+                                @endif
+                            </ol>
+                        </div>
 
-                    @if ($termLines)
-                        <ul class="q-terms">
-                            @foreach ($termLines as $line)
-                                <li>{{ $line }}</li>
-                            @endforeach
-                        </ul>
-                    @endif
+                        <div class="q-sign">
+                            <div class="for">For: <b>{{ $company['name'] ?? '' }}</b></div>
 
-                    <div class="q-sign">
-                        @if (! empty($company['stamp_place']))
-                            <div class="q-stamp">
-                                {{ $company['name'] ?? '' }}<br>{{ $company['stamp_place'] }}
+                            <div class="q-stamp-slot">
+                                @if ($hasStampImage)
+                                    <img src="{{ $company['stamp_url'] }}" alt="" class="q-stamp-img" data-q-part="stamp">
+                                @elseif ($generatedSeal)
+                                    <div class="q-stamp" data-q-part="generated-seal">
+                                        <span class="q-stamp-ring">{{ $sealText ?: 'COMPANY' }}</span>
+                                        <span class="q-stamp-role">AUTHORISED</span>
+                                        <span class="q-stamp-rule"></span>
+                                        <span class="q-stamp-role">SIGNATORY</span>
+                                    </div>
+                                @else
+                                    <div class="q-stamp-empty">No stamp</div>
+                                @endif
+
+                                @if (! empty($company['signature_url']))
+                                    <img src="{{ $company['signature_url'] }}" alt="" class="q-sig-img" data-q-part="signature">
+                                @endif
                             </div>
-                        @endif
 
-                        <div class="q-sign-block">
-                            @if (! empty($company['signature_url']))
-                                <img src="{{ $company['signature_url'] }}" alt="" class="q-sign-img">
-                            @endif
-                            <div class="q-sign-rule"></div>
-                            <div style="font-size: 12px">
-                                {{ $company['authorized_person'] ?? 'Authorised Signatory' }}
-                            </div>
-                            @if (! empty($company['designation']))
-                                <div style="font-size: 11px; color: var(--ink-2)">{{ $company['designation'] }}</div>
+                            <div class="auth">Auth. Signatory</div>
+
+                            @if (! empty($company['authorized_person']) || ! empty($company['designation']))
+                                <div class="person">
+                                    @if (! empty($company['authorized_person']))
+                                        <b>{{ $company['authorized_person'] }}</b>
+                                    @endif
+                                    {{ $company['designation'] ?? '' }}
+                                </div>
                             @endif
                         </div>
                     </div>
+
+                    <div class="q-thanks">Thank you for the opportunity to quote. This is a computer-generated quotation.</div>
                 </div>
             @endif
 
             {{-- 8. Page footer --}}
             <div class="q-pagefoot">
                 <span>{{ $company['name'] ?? '' }}</span>
-                <span>Page 1</span>
+                <span>Page 1 of 1</span>
             </div>
         </div>
     </div>

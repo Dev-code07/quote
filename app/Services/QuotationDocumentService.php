@@ -30,10 +30,12 @@ class QuotationDocumentService
     {
         $today = now();
 
+        // Sample rows are copied from the client prototype (SAMPLE.items) so the
+        // preview shows exactly the layout that was signed off.
         $items = [
-            ['position' => 1, 'description' => 'Business laptop — Core i5, 16 GB RAM, 512 GB SSD, 14" FHD', 'qty' => 5, 'rate' => 72500, 'amount' => 362500],
-            ['position' => 2, 'description' => 'Software licence (per user, annual)', 'qty' => 25, 'rate' => 10500, 'amount' => 262500],
-            ['position' => 3, 'description' => 'Installation, configuration &amp; user onboarding', 'qty' => 1, 'rate' => 12000, 'amount' => 12000],
+            ['position' => 1, 'description' => 'Desktop PC — Core i5, 8 GB RAM, 512 GB SSD, 19.5" monitor', 'qty' => 8, 'rate' => 54900, 'amount' => 439200],
+            ['position' => 2, 'description' => 'Ink tank colour printer — print / scan / copy', 'qty' => 2, 'rate' => 14500, 'amount' => 29000],
+            ['position' => 3, 'description' => 'Line-interactive UPS — 1 kVA', 'qty' => 8, 'rate' => 5200, 'amount' => 41600],
         ];
 
         $subtotal = array_sum(array_column($items, 'amount'));
@@ -56,22 +58,24 @@ class QuotationDocumentService
                 'stamp_place' => $template->stamp_place,
                 'logo_url' => $template->logoUrl(),
                 'signature_url' => $template->signatureUrl(),
+                'stamp_url' => $template->companyStampUrl(),
+                'generated_seal' => (bool) $template->use_generated_seal,
                 'authorized_person' => $template->authorized_person,
                 'designation' => $template->designation,
             ],
             'client' => [
-                'name' => 'Sample Client Pvt. Ltd.',
-                'address' => 'Plot 14, Sector 18, Noida (U.P.)',
-                'gstin' => '27AAACR5678E1ZT',
-                'email' => 'purchase@sampleclient.in',
-                'phone' => '+91-98110-22334',
+                'name' => 'Govt. Senior Secondary School',
+                'address' => 'Sanjauli, Shimla (H.P.)',
+                'gstin' => null,
+                'email' => null,
+                'phone' => null,
             ],
             'meta' => [
                 'no' => 'QT-'.$today->format('Y').'-00001',
-                'date' => $today->format('d M Y'),
-                'valid' => $today->copy()->addDays(15)->format('d M Y'),
+                'date' => $today->format('d/m/Y'),
+                'valid' => $today->copy()->addDays(10)->format('d/m/Y'),
                 'enquiry_no' => 'ENQ/2026/0142',
-                'enquiry_date' => $today->copy()->subDays(3)->format('d M Y'),
+                'enquiry_date' => $today->copy()->subDays(3)->format('d/m/Y'),
             ],
             'items' => $items,
             'totals' => [
@@ -83,12 +87,12 @@ class QuotationDocumentService
                 'words' => '',
             ],
             'terms' => [
-                'intro' => TemplateTokens::render(
-                    $template->intro_message,
-                    'Sample Client Pvt. Ltd.',
-                    'ENQ/2026/0142',
-                    $today->copy()->subDays(3)
-                ),
+                // Tokens are deliberately left unresolved here. A template has no
+                // enquiry of its own, so the sheet draws {enquiry_no} and
+                // {enquiry_date} as blank fill-ins and {client_name} as sample
+                // data (see a4-sheet.blade.php). Quotes are resolved once, when
+                // the snapshot is taken, so the printed quote shows real values.
+                'intro' => $template->intro_message,
                 'delivery' => $template->delivery_period,
                 'warranty' => $template->warranty,
                 'validity' => $template->validity_text,
@@ -143,6 +147,10 @@ class QuotationDocumentService
                 'stamp_place' => $template['stamp_place'] ?? null,
                 'logo_url' => $template['logo_url'] ?? null,
                 'signature_url' => $template['signature_url'] ?? null,
+                // Absent on quotes created before company stamps existed; fall
+                // back to the old rule (a seal whenever a stamp city was set).
+                'stamp_url' => $template['stamp_url'] ?? null,
+                'generated_seal' => $template['generated_seal'] ?? ! empty($template['stamp_place']),
                 'authorized_person' => $template['authorized_person'] ?? null,
                 'designation' => $template['designation'] ?? null,
             ],
@@ -182,7 +190,7 @@ class QuotationDocumentService
 
     public function date(?CarbonInterface $date): string
     {
-        return $date?->format('d M Y') ?? '—';
+        return $date?->format('d/m/Y') ?? '—';
     }
 
     /**

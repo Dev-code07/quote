@@ -51,6 +51,9 @@ body {
     outline-offset: 2px;
 }
 
+/* Alpine's x-cloak: hide elements until Alpine has initialised them. */
+[x-cloak] { display: none !important; }
+
 /* Print: only the A4 document sheet is printed (see resources/views/pdf/quote.blade.php) */
 @media print {
     .no-print { display: none !important; }

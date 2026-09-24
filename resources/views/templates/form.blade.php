@@ -8,8 +8,15 @@
         ->all();
 @endphp
 
+{{--
+    Single scrolling editor with a live A4 preview, matching
+    docs/quoteflow_template_editor.html.
+
+    The left column is one ordinary <form>; the right column is replaced by
+    Alpine with server-rendered sheet HTML on every keystroke, so the preview
+    always shows the current unsaved values.
+--}}
 <x-app-layout :title="$isEdit ? 'Edit Quote Template' : 'Create Quote Template'">
-    {{-- Breadcrumb + page head, matching docs/quoteflow_template_editor.html --}}
     <div class="mb-3 flex flex-wrap items-center gap-1.5 text-[12.5px] text-app-faint">
         <a href="{{ route('templates.index') }}" class="transition-colors hover:text-app-accent">Templates</a>
         <span aria-hidden="true">/</span>
@@ -30,43 +37,26 @@
         </div>
     </div>
 
-    @if ($isEdit)
-        <div class="mb-4 flex flex-wrap items-center gap-2">
-            <span class="rounded-full bg-app-accent-soft px-2.5 py-1 text-xs font-semibold text-app-accent">
-                Editing: {{ $template->name }}
-            </span>
-            @if ($template->is_default)
-                <x-badge status="accent">Default template</x-badge>
-            @endif
-        </div>
-    @endif
-
     {{-- .editor: minmax(0,1fr) minmax(440px,1.05fr), 24px gap --}}
     <div
         class="grid grid-cols-1 items-start gap-6 xl:grid-cols-[minmax(0,1fr)_minmax(440px,1.05fr)]"
-        x-data="{
+        x-data="templateEditor({
+            endpoint: @js(route('templates.preview')),
+            templateId: @js($isEdit ? $template->getKey() : ''),
             accent: @js($template->accent_color?->value ?? 'navy'),
             alignment: @js($template->header_alignment?->value ?? 'center'),
             palettes: @js($palettes),
-            applyInk() {
-                const sheet = this.$refs.preview && this.$refs.preview.querySelector('[style*=\'--ink\']');
-                const c = this.palettes[this.accent];
-                if (! sheet || ! c) return;
-                sheet.style.setProperty('--ink', c.ink);
-                sheet.style.setProperty('--ink-2', c.ink2);
-                sheet.style.setProperty('--ink-soft', c.soft);
-                sheet.style.setProperty('--ink-line', c.line);
-            },
-        }"
-        x-init="$nextTick(() => applyInk())"
+        })"
     >
-
         <form
             id="template-form"
+            x-ref="form"
             method="POST"
             enctype="multipart/form-data"
             action="{{ $isEdit ? route('templates.update', $template) : route('templates.store') }}"
             class="min-w-0"
+            x-on:input="onFormInput($event)"
+            x-on:change="onFormChange($event)"
         >
             @csrf
             @if ($isEdit)
@@ -85,7 +75,7 @@
                         <x-input name="company_name" label="Client / Company Name" required placeholder="e.g. Himalayan Computers" :value="old('company_name', $template->company_name)" />
                     </div>
 
-                    <x-input name="company_gstin" label="GSTIN" maxlength="15" placeholder="22AAAAA0000A1Z5" class="uppercase" :value="old('company_gstin', $template->company_gstin)" />
+                    <x-input name="company_gstin" label="GSTIN" maxlength="15" placeholder="22AAAAA0000A1Z5" :value="old('company_gstin', $template->company_gstin)" />
                     <x-input name="email" type="email" label="Email" placeholder="sales@company.com" :value="old('email', $template->email)" />
 
                     <x-input name="mobile_1" label="Mobile Number" placeholder="98XXX-XXXXX" :value="old('mobile_1', $template->mobile_1)" />
@@ -101,13 +91,13 @@
             {{-- 2. Company Branding --}}
             <x-editor-section :number="2" title="Company Branding" hint="How the header looks">
                 <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                    <div class="sm:col-span-2">
+                    <div class="upload-field sm:col-span-2">
                         <label class="text-[12.5px] font-semibold text-app-muted">
                             Logo <span class="font-medium text-app-faint">(optional)</span>
                         </label>
 
                         <div class="mt-1.5 flex items-stretch gap-3">
-                            <div class="flex size-16 shrink-0 items-center justify-center overflow-hidden rounded-[6px] border border-app-border bg-app-bg">
+                            <div data-thumb="logo" class="flex size-16 shrink-0 items-center justify-center overflow-hidden rounded-[6px] border border-app-border bg-app-bg">
                                 @if ($template->logoUrl())
                                     <img src="{{ $template->logoUrl() }}" alt="Current logo" class="size-full object-contain">
                                 @else
@@ -119,6 +109,7 @@
                                 <input type="file" name="logo" accept="image/png,image/jpeg,image/svg+xml,image/webp"
                                     class="block w-full cursor-pointer text-[12.5px] text-app-muted file:mr-2 file:cursor-pointer file:rounded-[5px] file:border-0 file:bg-transparent file:px-0 file:text-[12.5px] file:font-semibold file:text-app-accent">
                                 <p class="text-[11.5px] text-app-faint">PNG, JPG, SVG or WebP, up to 2 MB</p>
+                                <p data-upload-error class="text-[12px] text-app-danger"></p>
                                 @error('logo') <p class="text-[12px] text-app-danger">{{ $message }}</p> @enderror
                             </div>
                         </div>
@@ -142,7 +133,7 @@
                         <div class="mt-1.5 inline-flex gap-0.5 rounded-[6px] bg-app-neutral-soft p-[3px]" role="radiogroup" aria-label="Header alignment">
                             @foreach (HeaderAlignment::cases() as $option)
                                 <button type="button" role="radio"
-                                    x-on:click="alignment = '{{ $option->value }}'"
+                                    x-on:click="alignment = '{{ $option->value }}'; onAccentChange()"
                                     x-bind:aria-checked="alignment === '{{ $option->value }}'"
                                     x-bind:class="alignment === '{{ $option->value }}' ? 'bg-white font-semibold text-app-text' : 'font-medium text-app-muted hover:text-app-text'"
                                     class="rounded-[5px] px-3 py-1.5 text-[12.5px] transition-colors"
@@ -158,7 +149,7 @@
                         <div class="mt-1.5 flex flex-wrap gap-2">
                             @foreach (AccentPalette::cases() as $option)
                                 <button type="button" title="{{ $option->label() }}" aria-label="{{ $option->label() }}"
-                                    x-on:click="accent = '{{ $option->value }}'"
+                                    x-on:click="accent = '{{ $option->value }}'; onAccentChange()"
                                     x-bind:style="`background: {{ $option->colours()['ink'] }}`"
                                     x-bind:class="accent === '{{ $option->value }}' ? 'ring-2 ring-app-text ring-offset-2' : ''"
                                     class="size-7 rounded-full border-2 border-white shadow-[0_0_0_1px_rgba(228,231,236,1)]"
@@ -186,17 +177,20 @@
                             placeholder="While thanking you for your esteemed enquiry no. {enquiry_no} dated {enquiry_date}, we submit our lowest rates…"
                             :value="old('intro_message', $template->intro_message)" />
 
-                        <p class="mt-2 flex flex-wrap items-center gap-1.5 text-[12px] text-app-faint">
+                        <div class="mt-2 flex flex-wrap items-center gap-1.5 text-[12px] text-app-faint">
                             Insert:
-                            <code class="rounded-[5px] border border-app-border bg-app-bg px-1.5 py-0.5 font-mono text-[11.5px] text-app-muted">{client_name}</code>
-                            <code class="rounded-[5px] border border-app-border bg-app-bg px-1.5 py-0.5 font-mono text-[11.5px] text-app-muted">{enquiry_no}</code>
-                            <code class="rounded-[5px] border border-app-border bg-app-bg px-1.5 py-0.5 font-mono text-[11.5px] text-app-muted">{enquiry_date}</code>
-                        </p>
+                            @foreach (['{client_name}' => 'Client name', '{enquiry_no}' => 'Enquiry no.', '{enquiry_date}' => 'Enquiry date'] as $token => $label)
+                                <button type="button"
+                                    x-on:click="insertToken(@js($token), 'intro_message')"
+                                    class="rounded-[5px] border border-app-border bg-app-bg px-1.5 py-0.5 font-mono text-[11.5px] text-app-muted transition-colors hover:border-app-accent hover:text-app-accent"
+                                >{{ $label }}</button>
+                            @endforeach
+                        </div>
                     </div>
 
                     <div class="sm:col-span-2">
                         <x-textarea name="extra_terms" label="Default terms &amp; conditions" rows="3"
-                            placeholder="Payment after installation against bill.&#10;Goods once sold will not be taken back."
+                            placeholder="Payment after installation against bill."
                             :value="old('extra_terms', $template->extra_terms)" />
                         <p class="mt-1 text-[12px] text-app-faint">One condition per line. GST, delivery, warranty and validity are added automatically.</p>
                     </div>
@@ -212,14 +206,16 @@
             {{-- 4. Footer & Signature --}}
             <x-editor-section :number="4" title="Footer & Signature" hint="Bottom-right of the quote">
                 <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                    <x-input name="authorized_person" label="Authorized person name" placeholder="Vikram Thakur" :value="old('authorized_person', $template->authorized_person)" />
-                    <x-input name="designation" label="Designation" placeholder="Proprietor" :value="old('designation', $template->designation)" />
+                    <x-input name="authorized_person" label="Authorized person name" placeholder="e.g. Vikram Thakur" :value="old('authorized_person', $template->authorized_person)" />
+                    <x-input name="designation" label="Designation" placeholder="e.g. Proprietor" :value="old('designation', $template->designation)" />
 
-                    <div class="sm:col-span-2">
-                        <label class="text-[12.5px] font-semibold text-app-muted">Signature <span class="font-medium text-app-faint">(optional)</span></label>
+                    <div class="upload-field sm:col-span-2">
+                        <label class="text-[12.5px] font-semibold text-app-muted">
+                            Signature <span class="font-medium text-app-faint">(optional)</span>
+                        </label>
 
                         <div class="mt-1.5 flex items-stretch gap-3">
-                            <div class="flex size-16 shrink-0 items-center justify-center overflow-hidden rounded-[6px] border border-app-border bg-app-bg">
+                            <div data-thumb="signature" class="flex size-16 shrink-0 items-center justify-center overflow-hidden rounded-[6px] border border-app-border bg-app-bg">
                                 @if ($template->signatureUrl())
                                     <img src="{{ $template->signatureUrl() }}" alt="Current signature" class="size-full object-contain">
                                 @else
@@ -231,6 +227,7 @@
                                 <input type="file" name="signature" accept="image/png,image/jpeg,image/svg+xml,image/webp"
                                     class="block w-full cursor-pointer text-[12.5px] text-app-muted file:mr-2 file:cursor-pointer file:rounded-[5px] file:border-0 file:bg-transparent file:px-0 file:text-[12.5px] file:font-semibold file:text-app-accent">
                                 <p class="text-[11.5px] text-app-faint">Transparent PNG works best, up to 2 MB</p>
+                                <p data-upload-error class="text-[12px] text-app-danger"></p>
                                 @error('signature') <p class="text-[12px] text-app-danger">{{ $message }}</p> @enderror
                             </div>
                         </div>
@@ -243,11 +240,13 @@
                         @endif
                     </div>
 
-                    <div class="sm:col-span-2">
-                        <label class="text-[12.5px] font-semibold text-app-muted">Company stamp <span class="font-medium text-app-faint">(optional)</span></label>
+                    <div class="upload-field sm:col-span-2">
+                        <label class="text-[12.5px] font-semibold text-app-muted">
+                            Company stamp <span class="font-medium text-app-faint">(optional)</span>
+                        </label>
 
                         <div class="mt-1.5 flex items-stretch gap-3">
-                            <div class="flex size-16 shrink-0 items-center justify-center overflow-hidden rounded-[6px] border border-app-border bg-app-bg">
+                            <div data-thumb="stamp" class="flex size-16 shrink-0 items-center justify-center overflow-hidden rounded-[6px] border border-app-border bg-app-bg">
                                 @if ($template->companyStampUrl())
                                     <img src="{{ $template->companyStampUrl() }}" alt="Current stamp" class="size-full object-contain">
                                 @else
@@ -259,6 +258,7 @@
                                 <input type="file" name="company_stamp" accept="image/png,image/jpeg,image/svg+xml,image/webp"
                                     class="block w-full cursor-pointer text-[12.5px] text-app-muted file:mr-2 file:cursor-pointer file:rounded-[5px] file:border-0 file:bg-transparent file:px-0 file:text-[12.5px] file:font-semibold file:text-app-accent">
                                 <p class="text-[11.5px] text-app-faint">Round seal image, PNG or JPG, up to 2 MB</p>
+                                <p data-upload-error class="text-[12px] text-app-danger"></p>
                                 @error('company_stamp') <p class="text-[12px] text-app-danger">{{ $message }}</p> @enderror
                             </div>
                         </div>
@@ -269,50 +269,56 @@
                                 Remove current stamp
                             </label>
                         @endif
+
+                        <label class="mt-2.5 flex items-center gap-2 text-[12.5px] text-app-muted">
+                            <input type="checkbox" name="use_generated_seal" value="1"
+                                @checked(old('use_generated_seal', $template->use_generated_seal ?? true))
+                                x-on:change="$el.closest('.upload-field').querySelector('[data-seal-text]').classList.toggle('hidden', ! $el.checked)"
+                                class="rounded-[4px] border-app-border text-app-accent focus:ring-app-accent/30">
+                            Use a generated seal when no stamp is uploaded
+                        </label>
                     </div>
 
-                    <label class="flex items-center gap-2 text-[12.5px] text-app-muted sm:col-span-2">
-                        <input type="checkbox" name="use_generated_seal" value="1"
-                            @checked(old('use_generated_seal', $template->use_generated_seal ?? true))
-                            class="rounded-[4px] border-app-border text-app-accent focus:ring-app-accent/30">
-                        Use a generated seal when no stamp is uploaded
-                    </label>
-
-                    <x-input name="stamp_place" label="Seal city / text" class="sm:col-span-2" placeholder="Shimla (H.P.)" :value="old('stamp_place', $template->stamp_place)" />
+                    <div data-seal-text class="sm:col-span-2 {{ old('use_generated_seal', $template->use_generated_seal ?? true) ? '' : 'hidden' }}">
+                        <x-input name="stamp_place" label="Seal city / text" placeholder="Shimla (H.P.)" :value="old('stamp_place', $template->stamp_place)" />
+                    </div>
                 </div>
             </x-editor-section>
         </form>
 
         {{-- Live A4 preview (sticky, right column) --}}
         <div class="min-w-0 xl:sticky xl:top-[76px]">
-            <div class="overflow-hidden rounded-[8px] border border-app-border bg-app-surface">
-                <div class="flex items-center justify-between gap-2 border-b border-app-border px-4 py-3">
+            <div class="flex max-h-[calc(100vh-120px)] flex-col overflow-hidden rounded-[8px] border border-app-border bg-app-surface">
+                <div class="flex flex-wrap items-center justify-between gap-2 border-b border-app-border px-4 py-3">
                     <h3 class="flex items-center gap-2 text-[13px] font-bold text-app-text">
-                        <span class="size-2 rounded-full bg-app-success" aria-hidden="true"></span>
+                        <span class="size-2 rounded-full bg-app-success shadow-[0_0_0_3px_#f0fdf4]" aria-hidden="true"></span>
                         Live Preview
                     </h3>
 
-                    <div class="flex items-center gap-1" x-data="{ zoom: 100 }">
+                    <div class="inline-flex gap-0.5 rounded-[6px] bg-app-neutral-soft p-[3px]" role="group" aria-label="Preview size">
                         <button type="button"
-                            class="rounded-[5px] border border-app-border px-2 py-1 text-[12px] font-semibold text-app-muted transition-colors hover:bg-app-neutral-soft"
-                            x-on:click="zoom = 100">Fit</button>
-                        <span class="w-11 text-center text-[12px] font-semibold tabular-nums text-app-muted" x-text="zoom + '%'">100%</span>
+                            x-on:click="setZoom('fit')"
+                            x-bind:class="zoom === 'fit' ? 'bg-white font-semibold text-app-text' : 'font-medium text-app-muted hover:text-app-text'"
+                            class="rounded-[5px] px-2.5 py-1 text-[12px] transition-colors">Fit</button>
                         <button type="button"
-                            class="flex size-6 items-center justify-center rounded-[5px] border border-app-border text-app-muted transition-colors hover:bg-app-neutral-soft"
-                            x-on:click="zoom = Math.min(140, zoom + 10)" aria-label="Zoom in">
-                            <x-icon name="plus" size="13" />
-                        </button>
+                            x-on:click="setZoom(1)"
+                            x-bind:class="zoom === 1 ? 'bg-white font-semibold text-app-text' : 'font-medium text-app-muted hover:text-app-text'"
+                            class="rounded-[5px] px-2.5 py-1 text-[12px] transition-colors">100%</button>
                     </div>
                 </div>
 
-                <p class="border-b border-app-border px-4 py-2 text-[11.5px] text-app-faint">
-                    A4, items and client are sample data
-                </p>
+                <div class="flex flex-wrap items-center justify-between gap-2 border-b border-app-border bg-app-bg px-4 py-2 text-[11.5px] text-app-faint">
+                    <span>A4, items and client are sample data</span>
+                    <span x-show="overflow" x-cloak class="font-semibold text-app-warning">
+                        Long content — signature may move to page 2 on real quotes
+                    </span>
+                </div>
 
-                <div x-ref="preview" x-effect="applyInk()" class="max-h-[720px] overflow-auto bg-app-bg p-4">
-                    <div class="mx-auto origin-top"
-                        x-bind:style="`transform: scale(${zoom / 100}); width: ${210 * 96 / 25.4}px;`">
-                        <x-a4-sheet :doc="$previewDoc" />
+                <div x-ref="scroller" class="min-h-0 flex-1 overflow-auto bg-[#e8ebf0] p-[18px]">
+                    <div x-ref="slot" class="relative mx-auto" style="min-height: 1px">
+                        <div x-ref="preview">
+                            <x-a4-sheet :doc="$previewDoc" />
+                        </div>
                     </div>
                 </div>
             </div>
@@ -321,12 +327,9 @@
 
     {{-- Sticky bottom bar --}}
     <div class="sticky bottom-0 z-20 mt-5 flex flex-wrap items-center justify-between gap-3 rounded-[8px] border border-app-border bg-app-surface px-4 py-3 shadow-app-card">
-        <p class="text-[12.5px] text-app-faint">
-            @if ($isEdit)
-                Changes apply to new quotations only. Existing quotations keep their original snapshot.
-            @else
-                No changes yet
-            @endif
+        <p class="flex items-center gap-2 text-[12.5px]" x-bind:class="dirty ? 'text-app-warning' : 'text-app-faint'">
+            <span class="size-[7px] rounded-full" x-bind:class="dirty ? 'bg-app-warning' : 'bg-app-faint'"></span>
+            <span x-text="dirty ? 'Unsaved changes' : 'No changes yet'">No changes yet</span>
         </p>
 
         <div class="flex flex-wrap items-center gap-2">

@@ -62,7 +62,7 @@ class TemplateEditorLayoutTest extends TestCase
         $this->assertStringContainsString('sample data', $html, 'Prototype notes the preview uses sample data.');
         $this->assertStringContainsString('xl:sticky', $html);
         $this->assertStringContainsString(
-            'Sample Client',
+            'Govt. Senior Secondary School',
             $html,
             'The preview must render the real A4 document built from the template.'
         );

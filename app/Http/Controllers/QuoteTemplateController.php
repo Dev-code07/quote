@@ -8,9 +8,11 @@ use App\Http\Requests\StoreQuoteTemplateRequest;
 use App\Http\Requests\UpdateQuoteTemplateRequest;
 use App\Models\QuoteTemplate;
 use App\Services\QuotationDocumentService;
+use App\Services\TemplateDraftService;
 use App\Services\TemplateUploadService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\Response;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Redirect;
 use Illuminate\View\View;
@@ -20,6 +22,7 @@ class QuoteTemplateController extends Controller
     public function __construct(
         private readonly TemplateUploadService $uploads,
         private readonly QuotationDocumentService $documents,
+        private readonly TemplateDraftService $drafts,
     ) {}
 
     /**
@@ -69,6 +72,35 @@ class QuoteTemplateController extends Controller
                 ])
             ),
         ]);
+    }
+
+    /**
+     * Re-render the A4 preview from unsaved editor input.
+     *
+     * The editor posts its current field values here and swaps the returned
+     * sheet into the right-hand panel, so the preview is genuinely live rather
+     * than frozen until a page reload. No validation is applied and nothing is
+     * written: half-finished input (a 4-character GSTIN, say) must still
+     * render, and a preview request must never mutate data.
+     */
+    public function preview(Request $request): Response
+    {
+        $this->authorize('create', QuoteTemplate::class);
+
+        $existing = null;
+
+        if ($request->filled('template_id')) {
+            $existing = QuoteTemplate::query()->findOrFail($request->integer('template_id'));
+            $this->authorize('update', $existing);
+        }
+
+        $draft = $this->drafts->fromInput($request->all(), $existing);
+
+        return response(
+            view('templates.partials.preview-sheet', [
+                'doc' => $this->documents->fromTemplate($draft),
+            ])->render()
+        );
     }
 
     /**

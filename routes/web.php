@@ -44,6 +44,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
      * Restore and force-delete live in the trash namespace so a normal id can
      * never purge a record (PRD FR-12, decision #8).
      */
+    // Live A4 preview for the editor. Declared before the resource routes so
+    // 'templates/preview' is never read as a template id.
+    Route::post('templates/preview', [QuoteTemplateController::class, 'preview'])->name('templates.preview');
     Route::post('templates/{template}/duplicate', [QuoteTemplateController::class, 'duplicate'])->name('templates.duplicate');
     Route::post('templates/{template}/set-default', [QuoteTemplateController::class, 'setDefault'])->name('templates.set-default');
     Route::get('templates-trash', [QuoteTemplateController::class, 'trash'])->name('templates.trash');
