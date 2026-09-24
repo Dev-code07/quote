@@ -64,13 +64,18 @@ body {
  * columns to one, dropping the cards underneath the document. A container
  * query asks the question that actually matters: how wide is the space the
  * grid actually has?
+ *
+ * The rule MUST target a descendant of the container, never the container
+ * itself: an element cannot be styled by a query on its own size, so putting
+ * `grid-template-columns` on `.quote-split` silently does nothing. The
+ * container is the wrapper; the grid is its child.
  */
 .quote-split {
     container-type: inline-size;
 }
 
 @container (min-width: 1000px) {
-    .quote-split {
+    .quote-split > .grid {
         grid-template-columns: minmax(0, 2fr) minmax(288px, 1fr);
     }
 }

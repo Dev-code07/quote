@@ -56,12 +56,66 @@ class QuoteScreenLayoutTest extends TestCase
         $this->assertStringContainsString('container-type: inline-size', $css);
         $this->assertStringContainsString('@container (min-width:', $css);
 
+        // The query must style a DESCENDANT of the container. A container
+        // query cannot restyle the container from its own size, so
+        // `.quote-split { grid-template-columns: ... }` inside @container is
+        // silently ignored and the cards fall below the sheet again.
+        $this->assertMatchesRegularExpression(
+            '/@container\s*\([^)]*\)\s*\{\s*\.quote-split\s*>/',
+            $css,
+            'The container query must target a child of .quote-split, not .quote-split itself.'
+        );
+
+        $view = (string) file_get_contents(resource_path('views/quotes/show.blade.php'));
+
         // The old, broken construct must not come back: a 3-column grid whose
         // split depends on the window rather than the available content.
-        $view = (string) file_get_contents(resource_path('views/quotes/show.blade.php'));
         $this->assertStringNotContainsString('xl:grid-cols-3', $view);
         $this->assertStringNotContainsString('xl:col-span-2', $view);
-        $this->assertStringContainsString('quote-split', $view);
+
+        // The container must WRAP a grid, not be the grid itself.
+        $flat = preg_replace('/\s+/', ' ', $view) ?? $view;
+        $this->assertMatchesRegularExpression(
+            '/class="quote-split"\s*>\s*<div class="grid/',
+            $flat,
+            '.quote-split must wrap the grid as a child element.'
+        );
+    }
+
+    public function test_preview_is_the_first_child_of_the_grid(): void
+    {
+        $user = User::factory()->create();
+        $quote = $this->quoteFor($user);
+
+        $html = $this->actingAs($user)
+            ->get(route('quotes.show', $quote))
+            ->assertOk()
+            ->getContent();
+
+        // The A4 sheet must be the first grid child, with the Summary / Details
+        // cards as its sibling, rather than appended after the grid. The markup
+        // is rendered HTML, so match the preview card's own wrapper.
+        $flat = preg_replace('/\s+/', ' ', $html) ?? $html;
+
+        $this->assertMatchesRegularExpression(
+            '/class="quote-split"\s*>\s*<div class="grid[^"]*"\s*>\s*<div\s*>\s*<div class="[^"]*">/',
+            $flat,
+            'The A4 preview must be the first child of the grid inside .quote-split.'
+        );
+
+        // Summary must live inside that same grid, as a sibling of the preview,
+        // not in a separate block below it.
+        $splitAt = strpos($flat, 'class="quote-split"');
+        $summaryAt = strpos($flat, 'Summary');
+        $this->assertNotFalse($summaryAt);
+
+        // Everything between the container and the Summary card is the grid and
+        // the preview column, so the card is still within the split.
+        $this->assertGreaterThan(
+            $splitAt,
+            $summaryAt,
+            'The Summary card must be rendered after the split container opens.'
+        );
     }
 
     public function test_summary_and_details_cards_are_present_beside_the_preview(): void
