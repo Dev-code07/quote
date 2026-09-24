@@ -1,0 +1,958 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>QuoteFlow — Quote Preview</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Hind:wght@400;500;600;700&family=Zilla+Slab:wght@600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #f4f5f7;
+    --surface: #ffffff;
+    --border: #e4e7ec;
+    --text: #1f2937;
+    --text-muted: #6b7280;
+    --text-faint: #9ca3af;
+    --accent: #2563eb;
+    --accent-hover: #1d4ed8;
+    --accent-soft: #eff6ff;
+    --success: #15803d;
+    --success-soft: #f0fdf4;
+    --warning: #b45309;
+    --warning-soft: #fffbeb;
+    --info: #0369a1;
+    --info-soft: #f0f9ff;
+    --danger: #b91c1c;
+    --danger-soft: #fef2f2;
+    --neutral-soft: #f3f4f6;
+    --radius: 8px;
+    --radius-sm: 6px;
+    --font: "Segoe UI", "Inter", "Helvetica Neue", Arial, sans-serif;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { height: 100%; }
+  body {
+    font-family: var(--font);
+    background: var(--bg);
+    color: var(--text);
+    font-size: 14px;
+    line-height: 1.5;
+  }
+
+  /* ============ LAYOUT ============ */
+  .app { display: flex; min-height: 100vh; }
+
+  /* ============ SIDEBAR ============ */
+  .sidebar {
+    width: 232px;
+    background: var(--surface);
+    border-right: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    position: fixed;
+    top: 0; left: 0; bottom: 0;
+    z-index: 60;
+  }
+  .sidebar-logo {
+    display: flex; align-items: center; gap: 10px;
+    padding: 18px 20px;
+    border-bottom: 1px solid var(--border);
+  }
+  .sidebar-logo .logo-mark {
+    width: 30px; height: 30px;
+    background: var(--accent);
+    border-radius: 7px;
+    display: flex; align-items: center; justify-content: center;
+    color: #fff; flex-shrink: 0;
+  }
+  .sidebar-logo .logo-name { font-size: 16px; font-weight: 700; letter-spacing: -0.2px; }
+  .sidebar-logo .logo-name span { color: var(--accent); }
+
+  .nav { flex: 1; padding: 14px 12px; overflow-y: auto; }
+  .nav-label {
+    font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em;
+    color: var(--text-faint); padding: 8px 10px 6px;
+  }
+  .nav-item {
+    display: flex; align-items: center; gap: 10px;
+    padding: 9px 10px;
+    border-radius: var(--radius-sm);
+    color: var(--text-muted);
+    font-weight: 500;
+    cursor: pointer;
+    margin-bottom: 2px;
+    text-decoration: none;
+    transition: background 0.12s ease, color 0.12s ease;
+  }
+  .nav-item svg { flex-shrink: 0; }
+  .nav-item:hover { background: var(--neutral-soft); color: var(--text); }
+  .nav-item.active {
+    background: var(--accent-soft);
+    color: var(--accent);
+    font-weight: 600;
+  }
+  .nav-badge {
+    margin-left: auto;
+    background: var(--neutral-soft);
+    color: var(--text-muted);
+    font-size: 11px; font-weight: 600;
+    padding: 1px 7px; border-radius: 999px;
+  }
+  .nav-item.active .nav-badge { background: #dbeafe; color: var(--accent); }
+
+  .sidebar-bottom {
+    border-top: 1px solid var(--border);
+    padding: 10px 12px 14px;
+  }
+  .user-chip {
+    display: flex; align-items: center; gap: 10px;
+    padding: 8px 10px;
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+  }
+  .user-chip:hover { background: var(--neutral-soft); }
+  .avatar {
+    width: 32px; height: 32px; border-radius: 50%;
+    background: #1e40af; color: #fff;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 12px; font-weight: 600; flex-shrink: 0;
+  }
+  .user-chip .u-name { font-size: 13px; font-weight: 600; }
+  .user-chip .u-role { font-size: 11px; color: var(--text-faint); }
+
+  /* ============ MAIN ============ */
+  .main {
+    flex: 1;
+    margin-left: 232px;
+    display: flex; flex-direction: column;
+    min-width: 0;
+  }
+
+  /* Topbar */
+  .topbar {
+    height: 60px;
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; gap: 14px;
+    padding: 0 28px;
+    position: sticky; top: 0; z-index: 50;
+  }
+  .menu-btn {
+    display: none;
+    background: none; border: 1px solid var(--border); border-radius: var(--radius-sm);
+    width: 36px; height: 36px; cursor: pointer; color: var(--text-muted);
+    align-items: center; justify-content: center;
+  }
+  .topbar-search {
+    flex: 0 1 340px;
+    position: relative;
+    color: var(--text-faint);
+  }
+  .topbar-search input {
+    width: 100%;
+    padding: 8px 12px 8px 34px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    font-size: 13px; font-family: inherit;
+    background: var(--bg);
+    color: var(--text);
+  }
+  .topbar-search input:focus { outline: 2px solid rgba(37,99,235,0.25); border-color: var(--accent); background: #fff; }
+  .topbar-search svg { position: absolute; left: 11px; top: 50%; transform: translateY(-50%); }
+  .topbar-right { margin-left: auto; display: flex; align-items: center; gap: 10px; }
+  .icon-btn {
+    width: 36px; height: 36px;
+    border: 1px solid var(--border); border-radius: var(--radius-sm);
+    background: #fff; color: var(--text-muted); cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    position: relative;
+  }
+  .icon-btn:hover { background: var(--neutral-soft); color: var(--text); }
+  .icon-btn .dot {
+    position: absolute; top: 7px; right: 8px;
+    width: 7px; height: 7px; border-radius: 50%;
+    background: var(--danger); border: 1.5px solid #fff;
+  }
+
+  /* Content */
+  .content { padding: 28px; flex: 1; max-width: 1180px; width: 100%; margin: 0 auto; }
+
+  /* Breadcrumb */
+  .breadcrumb {
+    display: flex; align-items: center; gap: 7px;
+    font-size: 12.5px; color: var(--text-faint);
+    margin-bottom: 10px;
+  }
+  .breadcrumb a { color: var(--text-muted); text-decoration: none; font-weight: 500; }
+  .breadcrumb a:hover { color: var(--accent); }
+  .breadcrumb .sep { color: var(--text-faint); }
+
+  .page-head {
+    display: flex; align-items: flex-end; justify-content: space-between;
+    gap: 16px; margin-bottom: 22px; flex-wrap: wrap;
+  }
+  .page-head h1 { font-size: 24px; font-weight: 700; letter-spacing: -0.3px; }
+  .page-head p { color: var(--text-muted); margin-top: 3px; }
+  .page-actions { display: flex; gap: 10px; flex-wrap: wrap; }
+
+  .btn {
+    display: inline-flex; align-items: center; gap: 7px;
+    padding: 9px 16px;
+    border-radius: var(--radius-sm);
+    font-size: 13px; font-weight: 600;
+    font-family: inherit; cursor: pointer;
+    border: 1px solid transparent;
+    transition: background 0.12s ease;
+    white-space: nowrap;
+  }
+  .btn-primary { background: var(--accent); color: #fff; }
+  .btn-primary:hover { background: var(--accent-hover); }
+  .btn-outline { background: #fff; border-color: var(--border); color: var(--text); }
+  .btn-outline:hover { background: var(--neutral-soft); }
+  .btn-ghost { background: none; color: var(--text-muted); border-color: transparent; }
+  .btn-ghost:hover { background: var(--neutral-soft); color: var(--text); }
+  .btn-danger-soft { background: var(--danger-soft); color: var(--danger); }
+  .btn-danger-soft:hover { background: #fee2e2; }
+
+  /* Footer */
+  .footer {
+    padding: 18px 28px;
+    text-align: center;
+    color: var(--text-faint); font-size: 12.5px;
+    border-top: 1px solid var(--border);
+    background: var(--surface);
+  }
+
+  /* ============ A4 PREVIEW OVERLAY ============ */
+  .preview-overlay {
+    position: fixed; inset: 0;
+    background: rgba(15,23,42,0.45);
+    z-index: 100;
+    display: none;
+    overflow-y: auto;
+    padding: 32px 16px;
+  }
+  .preview-overlay.visible { display: block; }
+  .preview-shell { max-width: 900px; margin: 0 auto; }
+  .preview-toolbar {
+    display: flex; align-items: center; justify-content: space-between;
+    gap: 12px; margin-bottom: 16px; flex-wrap: wrap;
+  }
+  .preview-toolbar .pt-title { color: #fff; font-weight: 600; font-size: 15px; display: flex; align-items: center; gap: 9px; }
+  .preview-toolbar .pt-actions { display: flex; gap: 10px; }
+  /* Toast */
+  .toast {
+    position: fixed; bottom: 24px; right: 24px;
+    background: #111827; color: #fff;
+    padding: 11px 18px; border-radius: var(--radius-sm);
+    font-size: 13px; font-weight: 500;
+    box-shadow: 0 8px 24px rgba(15,23,42,0.25);
+    z-index: 200;
+    display: none; align-items: center; gap: 9px;
+  }
+  .toast.visible { display: flex; }
+
+  .scrim {
+    position: fixed; inset: 0; background: rgba(15,23,42,0.35);
+    z-index: 55; display: none;
+  }
+  .scrim.visible { display: block; }
+
+
+  /* ============ PREVIEW PAGE ============ */
+  .status-chip {
+    display: inline-flex; align-items: center; gap: 6px;
+    font-size: 12px; font-weight: 600; padding: 3px 10px; border-radius: 999px;
+    background: var(--warning-soft); color: var(--warning);
+  }
+  .status-chip::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+  .status-chip.saved { background: var(--success-soft); color: var(--success); }
+  .pv-bar {
+    display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap;
+    background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+    padding: 10px 14px; margin-bottom: 16px;
+  }
+  .pv-info { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; font-size: 13px; color: var(--text-muted); }
+  .pv-info strong { color: var(--text); font-weight: 600; }
+  .pv-info .sep { width: 1px; height: 16px; background: var(--border); }
+  .pv-sample { font-size: 12px; color: var(--info); background: var(--info-soft); padding: 3px 10px; border-radius: 999px; }
+  .pv-zoom { display: flex; align-items: center; gap: 4px; }
+  .pv-zoom button {
+    height: 30px; min-width: 30px; padding: 0 8px; border: 1px solid var(--border); background: #fff;
+    border-radius: var(--radius-sm); color: var(--text-muted); cursor: pointer; font: 600 12.5px var(--font);
+  }
+  .pv-zoom button:hover { background: var(--neutral-soft); color: var(--text); }
+  .pv-zoom .z-val { min-width: 48px; text-align: center; font-size: 12.5px; font-weight: 600; color: var(--text); }
+  button:focus-visible, a:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+  .stage {
+    background: #e8ebf0; border: 1px solid var(--border); border-radius: var(--radius);
+    padding: 28px 16px 36px; display: flex; flex-direction: column; align-items: center; gap: 10px;
+    overflow: hidden;
+  }
+  .page-label { font-size: 12px; color: var(--text-muted); font-weight: 500; align-self: center; margin-top: 8px; }
+  .page-label:first-child { margin-top: 0; }
+  .sheet-slot { position: relative; }
+  .sheet-slot .sheet { position: absolute; top: 0; left: 0; transform-origin: top left; }
+
+  /* ============ A4 SHEET ============ */
+  .sheet {
+    --ink: #1f2f6b; --ink-2: #3b4a82; --ink-soft: #eef1fa; --ink-line: #c9d0e6;
+    --paper-text: #1b2340; --stamp: #5140b0;
+    width: 210mm; height: 297mm; background: #fff; padding: 9mm;
+    box-shadow: 0 1px 2px rgba(15,23,42,0.08), 0 12px 32px rgba(15,23,42,0.16);
+    display: flex;
+    font-family: "Hind", "Segoe UI", Arial, sans-serif; font-size: 13px; line-height: 1.45; color: var(--paper-text);
+    -webkit-print-color-adjust: exact; print-color-adjust: exact;
+  }
+  .q-frame {
+    flex: 1; min-height: 0; display: flex; flex-direction: column;
+    border: 2px solid var(--ink); outline: 1px solid var(--ink); outline-offset: 3px; margin: 4px;
+  }
+  .q-flow { flex: 1; min-height: 0; overflow: hidden; position: relative; display: flex; flex-direction: column; }
+  .q-pagefoot {
+    display: flex; justify-content: space-between; gap: 12px;
+    border-top: 1px solid var(--ink-line); padding: 6px 14px 7px; font-size: 10.5px; color: #7a819c;
+  }
+
+  .q-strip {
+    display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 12px;
+    padding: 9px 16px; border-bottom: 1px solid var(--ink-line); font-size: 12px; color: var(--ink-2);
+  }
+  .q-strip b { color: var(--paper-text); font-weight: 600; }
+  .q-doc-title { background: var(--ink); color: #fff; font-weight: 600; font-size: 11.5px; letter-spacing: 0.12em; padding: 4px 14px 3px; border-radius: 2px; white-space: nowrap; }
+  .q-strip .q-mob { text-align: right; line-height: 1.5; }
+
+  .q-head { text-align: center; padding: 14px 20px 11px; }
+  .q-brand { display: inline-flex; align-items: center; gap: 14px; }
+  .q-logo { width: 52px; height: 52px; object-fit: contain; }
+  .q-company { font-family: "Zilla Slab", Rockwell, Georgia, serif; font-weight: 700; font-size: 40px; line-height: 1; letter-spacing: 0.03em; color: var(--ink); }
+  .q-company-rule { display: flex; align-items: center; gap: 10px; justify-content: center; margin: 9px auto 7px; max-width: 540px; }
+  .q-company-rule::before, .q-company-rule::after { content: ""; flex: 1; border-top: 3px double var(--ink); }
+  .q-deals { font-size: 13px; font-weight: 600; padding: 0 6px; white-space: nowrap; }
+  .q-deals span { font-weight: 500; color: var(--ink-2); }
+  .q-address { font-size: 12px; color: var(--ink-2); }
+
+  .q-cont { display: flex; justify-content: space-between; align-items: baseline; gap: 16px; padding: 10px 16px 8px; border-bottom: 1.5px solid var(--ink); }
+  .q-cont .n { font-family: "Zilla Slab", Rockwell, Georgia, serif; font-weight: 700; font-size: 20px; color: var(--ink); }
+  .q-cont .r { font-size: 12px; color: var(--ink-2); text-align: right; }
+  .q-cont .r b { color: var(--paper-text); }
+  .q-cont-note { font-size: 11.5px; color: #7a819c; font-style: italic; padding: 7px 16px 0; }
+
+  .q-meta { display: flex; justify-content: space-between; gap: 16px; background: var(--ink-soft); border-top: 1.5px solid var(--ink); border-bottom: 1px solid var(--ink-line); padding: 7px 16px; font-size: 13px; }
+  .q-meta b { font-weight: 700; color: var(--ink); font-variant-numeric: tabular-nums; }
+
+  .q-parties { display: grid; grid-template-columns: 1.4fr 1fr; gap: 20px; padding: 11px 16px 4px; }
+  .q-to-label { font-size: 12px; color: var(--ink-2); margin-bottom: 2px; }
+  .q-to { padding-left: 34px; }
+  .q-to .name { font-size: 16px; font-weight: 700; line-height: 1.3; }
+  .q-to p { font-size: 12.5px; color: #3a4260; margin-top: 1px; }
+  .q-side { font-size: 12px; color: var(--ink-2); align-self: end; }
+  .q-side div { display: flex; justify-content: flex-end; gap: 8px; line-height: 1.8; }
+  .q-side b { color: var(--paper-text); font-weight: 600; }
+
+  .q-letter { padding: 6px 16px 10px; font-size: 12.5px; color: #3a4260; }
+  .q-letter .salute { color: var(--paper-text); margin-bottom: 2px; }
+  .q-letter p { text-indent: 34px; }
+  .q-fill { display: inline-block; min-width: 70px; border-bottom: 1px dotted var(--ink-2); color: var(--paper-text); font-weight: 600; text-indent: 0; text-align: center; padding: 0 4px; }
+
+  .q-table-wrap { padding: 8px 10px 0; }
+  .q-table { width: 100%; border-collapse: collapse; border: 1.5px solid var(--ink); table-layout: fixed; }
+  .q-table th { background: var(--ink); color: #fff; font-weight: 600; font-size: 12px; padding: 7px 10px 6px; text-align: left; border-left: 1px solid rgba(255,255,255,0.25); white-space: nowrap; }
+  .q-table th:first-child { border-left: none; }
+  .q-table td { padding: 7px 10px; font-size: 12.5px; vertical-align: top; border-left: 1px solid var(--ink); }
+  .q-table td:first-child { border-left: none; }
+  .q-table tbody tr + tr td { border-top: 1px dotted var(--ink-line); }
+  .q-table tbody tr.q-filler td { border-top: none; padding: 0; }
+  .q-table .c { text-align: center; }
+  .q-table .r { text-align: right; font-variant-numeric: tabular-nums; }
+  .q-table td.desc { font-weight: 600; }
+  .q-table tfoot td { border-top: 1px solid var(--ink); padding: 6px 10px; font-size: 12.5px; }
+  .q-table tfoot td.lbl { text-align: right; color: var(--ink-2); }
+  .q-table tfoot tr.grand td { background: var(--ink-soft); border-top: 1.5px solid var(--ink); font-size: 14px; font-weight: 700; color: var(--ink); padding: 8px 10px; }
+  .q-carry { font-size: 11.5px; color: #7a819c; font-style: italic; text-align: right; padding: 5px 12px 0; }
+
+  .q-closing { padding-top: 7px; }
+  .q-words { font-size: 12px; color: #3a4260; padding: 0 12px; }
+  .q-words b { color: var(--paper-text); font-weight: 600; }
+  .q-foot { display: grid; grid-template-columns: 1.35fr 1fr; gap: 20px; padding: 12px 16px 12px; align-items: end; }
+  .q-terms h4 { font-size: 13px; font-weight: 700; color: var(--ink); margin-bottom: 4px; }
+  .q-terms ol { padding-left: 18px; }
+  .q-terms li { font-size: 12px; color: #3a4260; line-height: 1.65; padding-left: 2px; }
+  .q-terms li.key { color: var(--paper-text); font-weight: 600; }
+  .q-sign { text-align: center; }
+  .q-sign .for { font-size: 12.5px; color: var(--ink-2); }
+  .q-sign .for b { color: var(--paper-text); font-weight: 600; }
+  .q-stamp-slot { height: 116px; display: flex; align-items: center; justify-content: center; }
+  .q-stamp { width: 106px; height: 106px; color: var(--stamp); transform: rotate(-11deg); opacity: 0.82; }
+  .q-stamp-empty { width: 96px; height: 96px; border: 1.5px dashed var(--ink-line); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 10.5px; color: #9aa1b8; }
+  .q-sign .auth { border-top: 1px solid var(--ink-2); display: inline-block; min-width: 180px; padding-top: 5px; font-size: 12.5px; font-weight: 600; }
+  .q-thanks { text-align: center; font-size: 10.5px; color: #7a819c; padding: 0 12px 4px; }
+
+  /* ============ RESPONSIVE ============ */
+  @media (max-width: 900px) {
+    .sidebar { transform: translateX(-100%); transition: transform 0.2s ease; }
+    .sidebar.open { transform: translateX(0); }
+    .main { margin-left: 0; }
+    .menu-btn { display: inline-flex; }
+    .topbar-search { display: none; }
+    .scrim.on { display: block; }
+  }
+  @media (max-width: 640px) {
+    .content { padding: 18px; }
+    .page-actions .btn { flex: 1 1 45%; justify-content: center; }
+    .stage { padding: 16px 8px 24px; }
+    .pv-info .sep { display: none; }
+  }
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+
+  /* ============ PRINT ============ */
+  @page { size: A4; margin: 0; }
+  @media print {
+    html, body { background: #fff !important; }
+    .sidebar, .topbar, .breadcrumb, .page-head, .pv-bar, .footer, .toast, .scrim, .page-label { display: none !important; }
+    .main { margin-left: 0 !important; }
+    .content { padding: 0 !important; max-width: none !important; }
+    .stage { display: block; padding: 0; border: none; background: none; border-radius: 0; overflow: visible; }
+    .sheet-slot { width: auto !important; height: auto !important; }
+    .sheet-slot .sheet { position: static; transform: none !important; box-shadow: none; break-after: page; page-break-after: always; }
+    .sheet-slot:last-child .sheet { break-after: auto; page-break-after: auto; }
+  }
+</style>
+</head>
+<body>
+
+<div class="app">
+
+  <!-- ============ SIDEBAR ============ -->
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-logo">
+      <div class="logo-mark">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="9" y1="13" x2="15" y2="13"/><line x1="9" y1="17" x2="13" y2="17"/></svg>
+      </div>
+      <div class="logo-name">Quote<span>Flow</span></div>
+    </div>
+
+    <nav class="nav">
+      <div class="nav-label">Main</div>
+      <a class="nav-item" href="#">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="9" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="14" y="12" width="7" height="9" rx="1"/><rect x="3" y="16" width="7" height="5" rx="1"/></svg>
+        Dashboard
+      </a>
+      <a class="nav-item active" href="#">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="9" y1="13" x2="15" y2="13"/><line x1="9" y1="17" x2="13" y2="17"/></svg>
+        Quotes <span class="nav-badge">128</span>
+      </a>
+      <a class="nav-item" href="#">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/></svg>
+        Templates
+      </a>
+      <a class="nav-item" href="#">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+        Clients
+      </a>
+    </nav>
+
+    <div class="sidebar-bottom">
+      <a class="nav-item" href="#">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+        Settings
+      </a>
+      <div class="user-chip">
+        <div class="avatar">RS</div>
+        <div>
+          <div class="u-name">Rohit Sharma</div>
+          <div class="u-role">Sales Manager</div>
+        </div>
+      </div>
+    </div>
+  </aside>
+  <div class="scrim" id="scrim"></div>
+
+  <!-- ============ MAIN ============ -->
+  <div class="main">
+
+    <div class="topbar">
+      <button class="menu-btn" id="menuBtn" aria-label="Menu">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+      </button>
+      <div class="topbar-search">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        <input type="text" placeholder="Search quotes, clients...">
+      </div>
+      <div class="topbar-right">
+        <button class="icon-btn" title="Notifications">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+          <span class="dot"></span>
+        </button>
+        <button class="icon-btn" title="Help">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+        </button>
+      </div>
+    </div>
+
+
+    <div class="content">
+
+      <div class="breadcrumb">
+        <a href="#">Quotes</a>
+        <span class="sep">/</span>
+        <a href="quoteflow_quote_builder.html">Create New Quote</a>
+        <span class="sep">/</span>
+        <span>Preview</span>
+      </div>
+
+      <div class="page-head">
+        <div>
+          <h1>Quote Preview</h1>
+          <p>This is exactly how the quotation will look in the PDF.</p>
+        </div>
+        <div class="page-actions">
+          <a class="btn btn-ghost" href="quoteflow_quote_builder.html" id="backBtn" style="text-decoration:none;">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+            Back to Edit
+          </a>
+          <button class="btn btn-outline" id="saveBtn">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+            Save Quote
+          </button>
+          <button class="btn btn-outline" id="printBtn">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
+            Print
+          </button>
+          <button class="btn btn-primary" id="pdfBtn">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            Download PDF
+          </button>
+        </div>
+      </div>
+
+      <div class="pv-bar">
+        <div class="pv-info">
+          <strong id="pvNo">—</strong>
+          <span class="status-chip" id="pvStatus">Draft</span>
+          <span class="sep"></span>
+          <span>Template: <strong id="pvTemplate">Standard</strong></span>
+          <span class="sep"></span>
+          <span>A4, <strong id="pvPages">1 page</strong></span>
+          <span class="sep"></span>
+          <span>Grand Total: <strong id="pvTotal">—</strong></span>
+          <span class="pv-sample" id="pvSample" hidden>Showing sample data</span>
+        </div>
+        <div class="pv-zoom" aria-label="Zoom">
+          <button id="zOut" aria-label="Zoom out">−</button>
+          <span class="z-val" id="zVal">100%</span>
+          <button id="zIn" aria-label="Zoom in">+</button>
+          <button id="zFit">Fit</button>
+        </div>
+      </div>
+
+      <div class="stage" id="stage" aria-label="Quotation pages"></div>
+
+    </div>
+
+    <div class="footer">QuoteFlow © 2026</div>
+  </div>
+</div>
+
+<div class="toast" id="toast">
+  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+  <span id="toastMsg"></span>
+</div>
+
+<script>
+(function () {
+  'use strict';
+
+  /* =========================================================
+     DATA — read from Quote Builder (localStorage), else sample
+     ========================================================= */
+  var STORE_KEY = 'quoteflow:currentQuote';
+
+  var SAMPLE = {
+    business: {
+      name: 'Softech Computer',
+      gstin: '02AJKPB0803F1Z4',
+      deals: 'Laptops, Multimedia Computers, Printers & Peripherals',
+      address: '30/10, Post Office Road, Mandi 175001 (H.P.)',
+      email: 'softechmnd@gmail.com',
+      mob1: '94180-80996', mob2: '01905-796406',
+      stampText: 'Mandi (H.P.)', showStamp: true, logo: ''
+    },
+    quote: {
+      no: 'QT-2026-00129', date: '2026-09-24', valid: '2026-09-27',
+      docTitle: 'QUOTATION / PROFORMA INVOICE', template: 'Standard',
+      enqNo: 'IITM/CSE/PUR/2026/412', enqDate: '2026-09-18'
+    },
+    client: {
+      name: 'Indian Institute of Technology Mandi',
+      address: 'School of Computing & Electrical Engineering,\nKamand, Mandi, Himachal Pradesh — 175075',
+      gstin: '', phone: '', email: ''
+    },
+    items: [
+      { desc: 'Desktop PC — Intel Core i5 (13th Gen), 16 GB DDR4, 512 GB NVMe SSD, 21.5" FHD monitor, keyboard & mouse', qty: 10, rate: 58500 },
+      { desc: '1 TB Internal SSD SATA — Western Digital / Adata', qty: 6, rate: 15900 },
+      { desc: 'Multifunction laser printer — mono, duplex, Wi-Fi (print / scan / copy)', qty: 2, rate: 38900 },
+      { desc: 'Ink tank colour printer — A4, print / scan / copy', qty: 1, rate: 14500 },
+      { desc: 'Line-interactive UPS — 1 kVA with 2 × 12 V batteries', qty: 10, rate: 4850 },
+      { desc: 'Wireless keyboard & mouse combo', qty: 10, rate: 1650 },
+      { desc: 'Full HD 1080p webcam with built-in microphone', qty: 6, rate: 2950 },
+      { desc: '24-port Gigabit unmanaged network switch, rack-mountable', qty: 1, rate: 9800 },
+      { desc: 'Cat6 UTP LAN cable — 305 m box', qty: 2, rate: 8400 },
+      { desc: 'HDMI cable — 3 m, high speed', qty: 10, rate: 450 },
+      { desc: 'Installation, networking & OS configuration (per node)', qty: 10, rate: 750 },
+      { desc: 'Comprehensive on-site AMC — 1 year (per system)', qty: 10, rate: 1800 }
+    ],
+    pricing: { gstPct: 18, discount: 5000 },
+    terms: {
+      delivery: '90 days from the date of purchase order',
+      warranty: 'One year onsite (as per manufacturer terms)',
+      validity: '3 days from the above date',
+      list: ['Payment within 30 days of delivery against bill.', 'Goods once sold will not be taken back.'],
+      notes: 'Freight and insurance up to IIT Mandi campus included.'
+    }
+  };
+
+  var usingSample = false;
+  var Q = (function () {
+    try {
+      var raw = localStorage.getItem(STORE_KEY);
+      if (raw) { var d = JSON.parse(raw); if (d && d.items) return d; }
+    } catch (e) { /* storage blocked — fall back */ }
+    usingSample = true;
+    return SAMPLE;
+  })();
+
+  /* =========================================================
+     HELPERS
+     ========================================================= */
+  function esc(s) { return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
+  function num(n) { return (+n || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
+  function pad2(n) { return n < 10 ? '0' + n : String(n); }
+  function fmtDate(iso) { if (!iso) return ''; var d = new Date(iso + 'T00:00:00'); return isNaN(d) ? iso : d.toLocaleDateString('en-GB'); }
+  function el(html) { var t = document.createElement('template'); t.innerHTML = html.trim(); return t.content.firstElementChild; }
+
+  var ONES = ['', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine', 'Ten', 'Eleven', 'Twelve',
+    'Thirteen', 'Fourteen', 'Fifteen', 'Sixteen', 'Seventeen', 'Eighteen', 'Nineteen'];
+  var TENS = ['', '', 'Twenty', 'Thirty', 'Forty', 'Fifty', 'Sixty', 'Seventy', 'Eighty', 'Ninety'];
+  function two(n) { return n < 20 ? ONES[n] : TENS[Math.floor(n / 10)] + (n % 10 ? ' ' + ONES[n % 10] : ''); }
+  function three(n) { var h = Math.floor(n / 100), r = n % 100; return (h ? ONES[h] + ' Hundred' + (r ? ' ' : '') : '') + (r ? two(r) : ''); }
+  function intWords(n) {
+    if (n === 0) return 'Zero';
+    var out = [], cr = Math.floor(n / 1e7); n %= 1e7;
+    var lk = Math.floor(n / 1e5); n %= 1e5;
+    var th = Math.floor(n / 1000); n %= 1000;
+    if (cr) out.push(intWords(cr) + ' Crore');
+    if (lk) out.push(two(lk) + ' Lakh');
+    if (th) out.push(two(th) + ' Thousand');
+    if (n) out.push(three(n));
+    return out.join(' ');
+  }
+  function amountWords(x) { var p = Math.round(x * 100), r = Math.floor(p / 100), ps = p % 100; return 'Rupees ' + intWords(r) + (ps ? ' and ' + two(ps) + ' Paise' : '') + ' Only'; }
+
+  function stampSvg(name, place) {
+    var ring = (name + ' \u2605 ' + place + ' \u2605 ').toUpperCase();
+    return '<svg class="q-stamp" viewBox="0 0 120 120" role="img" aria-label="Company seal">' +
+      '<defs><path id="qArc" d="M60,60 m-45,0 a45,45 0 1,1 90,0 a45,45 0 1,1 -90,0"/></defs>' +
+      '<circle cx="60" cy="60" r="57" fill="none" stroke="currentColor" stroke-width="2.4"/>' +
+      '<circle cx="60" cy="60" r="53" fill="none" stroke="currentColor" stroke-width="0.8"/>' +
+      '<circle cx="60" cy="60" r="36" fill="none" stroke="currentColor" stroke-width="1.2"/>' +
+      '<text font-family="Hind, Arial, sans-serif" font-size="9.6" font-weight="700" fill="currentColor">' +
+      '<textPath href="#qArc" textLength="279" lengthAdjust="spacing">' + esc(ring) + '</textPath></text>' +
+      '<text x="60" y="56" text-anchor="middle" font-family="Hind, Arial, sans-serif" font-size="8" font-weight="700" fill="currentColor" letter-spacing="0.6">AUTHORISED</text>' +
+      '<line x1="34" y1="61" x2="86" y2="61" stroke="currentColor" stroke-width="0.8"/>' +
+      '<text x="60" y="71" text-anchor="middle" font-family="Hind, Arial, sans-serif" font-size="8" font-weight="700" fill="currentColor" letter-spacing="0.6">SIGNATORY</text>' +
+      '</svg>';
+  }
+
+  /* =========================================================
+     TOTALS
+     ========================================================= */
+  var subtotal = Q.items.reduce(function (s, it) { return s + (+it.qty || 0) * (+it.rate || 0); }, 0);
+  var gstPct = +Q.pricing.gstPct || 0;
+  var discount = Math.max(0, +Q.pricing.discount || 0);
+  var taxable = Math.max(0, subtotal - discount);
+  var gst = taxable * gstPct / 100;
+  var grand = taxable + gst;
+
+  /* =========================================================
+     DOCUMENT BLOCKS
+     ========================================================= */
+  var B = Q.business, C = Q.client, M = Q.quote, T = Q.terms || {};
+
+  function firstHeader() {
+    return '<div>' +
+      '<div class="q-strip">' +
+        '<div>GSTIN: <b>' + esc(B.gstin || '—') + '</b></div>' +
+        '<div class="q-doc-title">' + esc(M.docTitle || 'QUOTATION') + '</div>' +
+        '<div class="q-mob">Mob. <b>' + esc(B.mob1 || '—') + '</b>' + (B.mob2 ? '<br>' + esc(B.mob2) : '') + '</div>' +
+      '</div>' +
+      '<div class="q-head">' +
+        '<div class="q-brand">' + (B.logo ? '<img class="q-logo" src="' + esc(B.logo) + '" alt="">' : '') +
+          '<div class="q-company">' + esc(B.name || 'Your Business Name') + '</div></div>' +
+        (B.deals ? '<div class="q-company-rule"><div class="q-deals">Deals in: <span>' + esc(B.deals) + '</span></div></div>' : '<div class="q-company-rule"></div>') +
+        '<div class="q-address">' + esc(B.address || '') + (B.email ? ' &nbsp;|&nbsp; E-mail: ' + esc(B.email) : '') + '</div>' +
+      '</div>' +
+      '<div class="q-meta"><div>Ref. No. <b>' + esc(M.no) + '</b></div><div>Dated: <b>' + esc(fmtDate(M.date) || '—') + '</b></div></div>' +
+      '<div class="q-parties">' +
+        '<div><div class="q-to-label">To</div><div class="q-to">' +
+          '<div class="name">' + esc(C.name || '—') + '</div>' +
+          (C.address ? '<p>' + esc(C.address).replace(/\n/g, '<br>') + '</p>' : '') +
+          (C.gstin ? '<p>GSTIN: ' + esc(C.gstin) + '</p>' : '') +
+        '</div></div>' +
+        '<div class="q-side">' +
+          (C.phone ? '<div>Phone <b>' + esc(C.phone) + '</b></div>' : '') +
+          (C.email ? '<div>Email <b>' + esc(C.email) + '</b></div>' : '') +
+          '<div>Valid until <b>' + esc(fmtDate(M.valid) || '—') + '</b></div>' +
+        '</div>' +
+      '</div>' +
+      '<div class="q-letter"><div class="salute">Dear Sir/Madam,</div>' +
+        '<p>While thanking you for your esteemed enquiry no. <span class="q-fill">' + esc(M.enqNo || '') + '</span> dated <span class="q-fill">' + esc(fmtDate(M.enqDate)) +
+        '</span>, we submit our lowest rates as under for favour of acceptance, subject to the terms and conditions given below.</p></div>' +
+    '</div>';
+  }
+
+  function contHeader(pageNo) {
+    return '<div>' +
+      '<div class="q-cont"><div class="n">' + esc(B.name || '') + '</div>' +
+      '<div class="r">Ref. No. <b>' + esc(M.no) + '</b> &nbsp;&nbsp; Dated <b>' + esc(fmtDate(M.date)) + '</b><br>To: ' + esc(C.name || '') + '</div></div>' +
+      '<div class="q-cont-note">Continued from page ' + (pageNo - 1) + '</div>' +
+    '</div>';
+  }
+
+  function tableShell() {
+    return '<div class="q-table-wrap"><table class="q-table">' +
+      '<colgroup><col style="width:62px"><col><col style="width:62px"><col style="width:104px"><col style="width:122px"></colgroup>' +
+      '<thead><tr><th class="c">Sr. No.</th><th>Item Description</th><th class="c">Qty.</th><th class="r">Rate (₹)</th><th class="r">Amount (₹)</th></tr></thead>' +
+      '<tbody></tbody></table></div>';
+  }
+
+  function rowHtml(it, i) {
+    return '<tr><td class="c">' + pad2(i + 1) + '</td><td class="desc">' + esc(it.desc || '—') + '</td>' +
+      '<td class="c">' + esc(it.qty) + '</td><td class="r">' + num(it.rate) + '</td><td class="r">' + num((+it.qty || 0) * (+it.rate || 0)) + '</td></tr>';
+  }
+
+  function totalsHtml() {
+    var t = '<tfoot><tr><td colspan="4" class="lbl">Sub Total</td><td class="r">' + num(subtotal) + '</td></tr>';
+    if (discount > 0) t += '<tr><td colspan="4" class="lbl">Less: Discount</td><td class="r">− ' + num(discount) + '</td></tr>';
+    if (gstPct > 0) t += '<tr><td colspan="4" class="lbl">GST @ ' + gstPct + '%</td><td class="r">' + num(gst) + '</td></tr>';
+    t += '<tr class="grand"><td colspan="4" class="lbl" style="color:inherit">Grand Total</td><td class="r">₹ ' + num(grand) + '</td></tr></tfoot>';
+    return t;
+  }
+
+  function closingHtml() {
+    var terms = [];
+    if (gstPct > 0) terms.push({ t: 'GST extra @ ' + gstPct + '% (included in Grand Total above)', key: true });
+    if (T.delivery) terms.push({ t: 'Delivery period: ' + T.delivery });
+    if (T.warranty) terms.push({ t: 'Warranty: ' + T.warranty });
+    if (T.validity) terms.push({ t: 'Validity of this offer: ' + T.validity });
+    (T.list || []).forEach(function (l) { if (l) terms.push({ t: l }); });
+    if (T.notes) terms.push({ t: T.notes });
+
+    var seal = B.showStamp === false
+      ? '<div class="q-stamp-empty">Seal</div>'
+      : stampSvg(B.name || 'Company', B.stampText || 'India');
+
+    return '<div class="q-closing">' +
+      '<div class="q-words">Amount in words: <b>' + esc(amountWords(grand)) + '</b></div>' +
+      '<div class="q-foot">' +
+        '<div class="q-terms"><h4>Terms &amp; Conditions</h4><ol>' +
+          terms.map(function (x) { return '<li' + (x.key ? ' class="key"' : '') + '>' + esc(x.t) + '</li>'; }).join('') +
+        '</ol></div>' +
+        '<div class="q-sign"><div class="for">For: <b>' + esc(B.name || '') + '</b></div>' +
+          '<div class="q-stamp-slot">' + seal + '</div>' +
+          '<div class="auth">Auth. Signatory</div></div>' +
+      '</div>' +
+      '<div class="q-thanks">Thank you for the opportunity to quote. This is a computer-generated quotation.</div>' +
+    '</div>';
+  }
+
+  /* =========================================================
+     PAGINATION — fills A4 pages, repeats table header,
+     moves the closing block to a new page if it won't fit
+     ========================================================= */
+  var stage = document.getElementById('stage');
+  var pages = [];
+
+  function newPage() {
+    var n = pages.length + 1;
+    var label = el('<div class="page-label">Page ' + n + '</div>');
+    var slot = el('<div class="sheet-slot"></div>');
+    var sheet = el('<div class="sheet"><div class="q-frame"><div class="q-flow"></div>' +
+      '<div class="q-pagefoot"><span>' + esc(B.name || '') + ' &nbsp; Ref. No. ' + esc(M.no) + '</span><span class="pno"></span></div></div></div>');
+    slot.appendChild(sheet);
+    stage.appendChild(label);
+    stage.appendChild(slot);
+    var p = { n: n, slot: slot, sheet: sheet, flow: sheet.querySelector('.q-flow'), table: null };
+    p.flow.appendChild(el(n === 1 ? firstHeader() : contHeader(n)));
+    pages.push(p);
+    return p;
+  }
+  function overflows(p) { return p.flow.scrollHeight > p.flow.clientHeight + 1; }
+  function addTable(p) {
+    var w = el(tableShell()); p.flow.appendChild(w);
+    p.table = w.querySelector('table'); p.tbody = w.querySelector('tbody');
+  }
+  function carryNote(p) {
+    var note = el('<div class="q-carry">Continued on page ' + (p.n + 1) + '</div>');
+    p.flow.appendChild(note);
+    return note;
+  }
+
+  function paginate() {
+    stage.innerHTML = ''; pages = [];
+    var p = newPage(); addTable(p);
+    var i = 0;
+    while (i < Q.items.length) {
+      var tr = el(rowHtml(Q.items[i], i));
+      p.tbody.appendChild(tr);
+      if (overflows(p) && p.tbody.children.length > 1) {
+        p.tbody.removeChild(tr);
+        carryNote(p);
+        while (overflows(p) && p.tbody.children.length > 1) { p.tbody.removeChild(p.tbody.lastElementChild); i--; }
+        p = newPage(); addTable(p);
+        continue;
+      }
+      i++;
+    }
+
+    /* totals stay attached to the table */
+    var tf = el('<table>' + totalsHtml() + '</table>').querySelector('tfoot');
+    p.table.appendChild(tf);
+    if (overflows(p)) {
+      p.table.removeChild(tf);
+      var moved = [];
+      if (p.tbody.children.length > 1) moved.push(p.tbody.removeChild(p.tbody.lastElementChild));
+      carryNote(p);
+      p = newPage(); addTable(p);
+      moved.forEach(function (r) { p.tbody.appendChild(r); });
+      p.table.appendChild(tf);
+    }
+
+    /* words + terms + signature */
+    var closing = el(closingHtml());
+    p.flow.appendChild(closing);
+    if (overflows(p)) {
+      /* take the last few rows + totals along, so page 2 never starts with a bare signature block */
+      p.flow.removeChild(closing);
+      var tfoot = p.table.querySelector('tfoot');
+      if (tfoot) p.table.removeChild(tfoot);
+      var carry = [];
+      while (carry.length < 3 && p.tbody.children.length > 1) carry.unshift(p.tbody.removeChild(p.tbody.lastElementChild));
+      if (carry.length) {
+        carryNote(p);
+        p = newPage(); addTable(p);
+        carry.forEach(function (r) { p.tbody.appendChild(r); });
+        if (tfoot) p.table.appendChild(tfoot);
+      } else {
+        if (tfoot) p.table.appendChild(tfoot);
+        p = newPage();
+      }
+      p.flow.appendChild(closing);
+    }
+
+    /* ruled filler so column lines run to the bottom, like a printed pad */
+    pages.forEach(function (pg) {
+      if (!pg.tbody) return;
+      var last = pg.flow.lastElementChild;
+      var used = last.offsetTop + last.offsetHeight;
+      var slack = Math.floor(pg.flow.clientHeight - used - 4);
+      if (slack > 8) {
+        var f = el('<table><tbody><tr class="q-filler"><td style="height:' + slack + 'px"></td><td></td><td></td><td></td><td></td></tr></tbody></table>').querySelector('tr');
+        pg.tbody.appendChild(f);
+        while (overflows(pg) && slack > 0) { slack -= 4; f.firstElementChild.style.height = slack + 'px'; }
+      }
+    });
+
+    var total = pages.length;
+    pages.forEach(function (pg) { pg.sheet.querySelector('.pno').textContent = 'Page ' + pg.n + ' of ' + total; });
+    document.getElementById('pvPages').textContent = total + (total === 1 ? ' page' : ' pages');
+    applyZoom();
+  }
+
+  /* =========================================================
+     ZOOM / FIT (transform only — layout stays true A4)
+     ========================================================= */
+  var zoom = 'fit';
+  var STEPS = [0.5, 0.65, 0.8, 1, 1.25];
+  function sheetSize() {
+    var s = pages[0] && pages[0].sheet;
+    return s ? { w: s.offsetWidth, h: s.offsetHeight } : { w: 794, h: 1123 };
+  }
+  function fitScale() {
+    var avail = stage.clientWidth - 32;
+    return Math.min(1, avail / sheetSize().w);
+  }
+  function currentScale() { return zoom === 'fit' ? fitScale() : zoom; }
+  function applyZoom() {
+    var sc = currentScale(), sz = sheetSize();
+    pages.forEach(function (pg) {
+      pg.slot.style.width = (sz.w * sc) + 'px';
+      pg.slot.style.height = (sz.h * sc) + 'px';
+      pg.sheet.style.transform = 'scale(' + sc + ')';
+    });
+    stage.style.overflowX = sc * sz.w > stage.clientWidth ? 'auto' : 'hidden';
+    stage.style.alignItems = sc * sz.w > stage.clientWidth ? 'flex-start' : 'center';
+    document.getElementById('zVal').textContent = Math.round(sc * 100) + '%';
+  }
+  function step(dir) {
+    var sc = currentScale(), idx = 0;
+    for (var k = 0; k < STEPS.length; k++) if (STEPS[k] <= sc + 0.001) idx = k;
+    if (dir > 0 && STEPS[idx] <= sc + 0.001) idx = Math.min(STEPS.length - 1, idx + 1);
+    if (dir < 0) idx = Math.max(0, STEPS[idx] < sc - 0.001 ? idx : idx - 1);
+    zoom = STEPS[idx]; applyZoom();
+  }
+  document.getElementById('zIn').addEventListener('click', function () { step(1); });
+  document.getElementById('zOut').addEventListener('click', function () { step(-1); });
+  document.getElementById('zFit').addEventListener('click', function () { zoom = 'fit'; applyZoom(); });
+  window.addEventListener('resize', applyZoom);
+
+  /* =========================================================
+     HEADER INFO + ACTIONS
+     ========================================================= */
+  document.getElementById('pvNo').textContent = M.no;
+  document.getElementById('pvTemplate').textContent = M.template || 'Standard';
+  document.getElementById('pvTotal').textContent = '₹' + num(grand);
+  if (usingSample) document.getElementById('pvSample').hidden = false;
+
+  function printDoc() {
+    var old = document.title;
+    document.title = M.no + ' - ' + (C.name || 'Quotation');
+    window.print();
+    document.title = old;
+  }
+  document.getElementById('printBtn').addEventListener('click', printDoc);
+  document.getElementById('pdfBtn').addEventListener('click', function () {
+    showToast('Choose "Save as PDF" in the print dialog');
+    setTimeout(printDoc, 350);
+  });
+  document.getElementById('saveBtn').addEventListener('click', function () {
+    var chip = document.getElementById('pvStatus');
+    chip.textContent = 'Saved'; chip.classList.add('saved');
+    showToast('Quote ' + M.no + ' saved');
+  });
+
+  /* Mobile sidebar */
+  var sidebar = document.getElementById('sidebar'), scrim = document.getElementById('scrim');
+  document.getElementById('menuBtn').addEventListener('click', function () { sidebar.classList.toggle('open'); scrim.classList.toggle('on'); });
+  scrim.addEventListener('click', function () { sidebar.classList.remove('open'); scrim.classList.remove('on'); });
+
+  /* Build after fonts so page breaks are measured with the real type */
+  paginate();
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(paginate);
+})();
+
+var toastTimer;
+function showToast(msg) {
+  var t = document.getElementById('toast');
+  document.getElementById('toastMsg').textContent = msg;
+  t.classList.add('visible');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(function () { t.classList.remove('visible'); }, 2600);
+}
+</script>
+
+</body>
+</html>

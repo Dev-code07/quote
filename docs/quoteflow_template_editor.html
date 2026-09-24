@@ -1,0 +1,1211 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>QuoteFlow — Create Quote Template</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Hind:wght@400;500;600;700&family=Zilla+Slab:wght@600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #f4f5f7;
+    --surface: #ffffff;
+    --border: #e4e7ec;
+    --text: #1f2937;
+    --text-muted: #6b7280;
+    --text-faint: #9ca3af;
+    --accent: #2563eb;
+    --accent-hover: #1d4ed8;
+    --accent-soft: #eff6ff;
+    --success: #15803d;
+    --success-soft: #f0fdf4;
+    --warning: #b45309;
+    --warning-soft: #fffbeb;
+    --info: #0369a1;
+    --info-soft: #f0f9ff;
+    --danger: #b91c1c;
+    --danger-soft: #fef2f2;
+    --neutral-soft: #f3f4f6;
+    --radius: 8px;
+    --radius-sm: 6px;
+    --font: "Segoe UI", "Inter", "Helvetica Neue", Arial, sans-serif;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { height: 100%; }
+  body {
+    font-family: var(--font);
+    background: var(--bg);
+    color: var(--text);
+    font-size: 14px;
+    line-height: 1.5;
+  }
+
+  /* ============ LAYOUT ============ */
+  .app { display: flex; min-height: 100vh; }
+
+  /* ============ SIDEBAR ============ */
+  .sidebar {
+    width: 232px;
+    background: var(--surface);
+    border-right: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    position: fixed;
+    top: 0; left: 0; bottom: 0;
+    z-index: 60;
+  }
+  .sidebar-logo {
+    display: flex; align-items: center; gap: 10px;
+    padding: 18px 20px;
+    border-bottom: 1px solid var(--border);
+  }
+  .sidebar-logo .logo-mark {
+    width: 30px; height: 30px;
+    background: var(--accent);
+    border-radius: 7px;
+    display: flex; align-items: center; justify-content: center;
+    color: #fff; flex-shrink: 0;
+  }
+  .sidebar-logo .logo-name { font-size: 16px; font-weight: 700; letter-spacing: -0.2px; }
+  .sidebar-logo .logo-name span { color: var(--accent); }
+
+  .nav { flex: 1; padding: 14px 12px; overflow-y: auto; }
+  .nav-label {
+    font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em;
+    color: var(--text-faint); padding: 8px 10px 6px;
+  }
+  .nav-item {
+    display: flex; align-items: center; gap: 10px;
+    padding: 9px 10px;
+    border-radius: var(--radius-sm);
+    color: var(--text-muted);
+    font-weight: 500;
+    cursor: pointer;
+    margin-bottom: 2px;
+    text-decoration: none;
+    transition: background 0.12s ease, color 0.12s ease;
+  }
+  .nav-item svg { flex-shrink: 0; }
+  .nav-item:hover { background: var(--neutral-soft); color: var(--text); }
+  .nav-item.active {
+    background: var(--accent-soft);
+    color: var(--accent);
+    font-weight: 600;
+  }
+  .nav-badge {
+    margin-left: auto;
+    background: var(--neutral-soft);
+    color: var(--text-muted);
+    font-size: 11px; font-weight: 600;
+    padding: 1px 7px; border-radius: 999px;
+  }
+  .nav-item.active .nav-badge { background: #dbeafe; color: var(--accent); }
+
+  .sidebar-bottom {
+    border-top: 1px solid var(--border);
+    padding: 10px 12px 14px;
+  }
+  .user-chip {
+    display: flex; align-items: center; gap: 10px;
+    padding: 8px 10px;
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+  }
+  .user-chip:hover { background: var(--neutral-soft); }
+  .avatar {
+    width: 32px; height: 32px; border-radius: 50%;
+    background: #1e40af; color: #fff;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 12px; font-weight: 600; flex-shrink: 0;
+  }
+  .user-chip .u-name { font-size: 13px; font-weight: 600; }
+  .user-chip .u-role { font-size: 11px; color: var(--text-faint); }
+
+  /* ============ MAIN ============ */
+  .main {
+    flex: 1;
+    margin-left: 232px;
+    display: flex; flex-direction: column;
+    min-width: 0;
+  }
+
+  /* Topbar */
+  .topbar {
+    height: 60px;
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; gap: 14px;
+    padding: 0 28px;
+    position: sticky; top: 0; z-index: 50;
+  }
+  .menu-btn {
+    display: none;
+    background: none; border: 1px solid var(--border); border-radius: var(--radius-sm);
+    width: 36px; height: 36px; cursor: pointer; color: var(--text-muted);
+    align-items: center; justify-content: center;
+  }
+  .topbar-search {
+    flex: 0 1 340px;
+    position: relative;
+    color: var(--text-faint);
+  }
+  .topbar-search input {
+    width: 100%;
+    padding: 8px 12px 8px 34px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    font-size: 13px; font-family: inherit;
+    background: var(--bg);
+    color: var(--text);
+  }
+  .topbar-search input:focus { outline: 2px solid rgba(37,99,235,0.25); border-color: var(--accent); background: #fff; }
+  .topbar-search svg { position: absolute; left: 11px; top: 50%; transform: translateY(-50%); }
+  .topbar-right { margin-left: auto; display: flex; align-items: center; gap: 10px; }
+  .icon-btn {
+    width: 36px; height: 36px;
+    border: 1px solid var(--border); border-radius: var(--radius-sm);
+    background: #fff; color: var(--text-muted); cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    position: relative;
+  }
+  .icon-btn:hover { background: var(--neutral-soft); color: var(--text); }
+  .icon-btn .dot {
+    position: absolute; top: 7px; right: 8px;
+    width: 7px; height: 7px; border-radius: 50%;
+    background: var(--danger); border: 1.5px solid #fff;
+  }
+
+  /* Content */
+  .content { padding: 28px; flex: 1; max-width: 1180px; width: 100%; margin: 0 auto; }
+
+  /* Breadcrumb */
+  .breadcrumb {
+    display: flex; align-items: center; gap: 7px;
+    font-size: 12.5px; color: var(--text-faint);
+    margin-bottom: 10px;
+  }
+  .breadcrumb a { color: var(--text-muted); text-decoration: none; font-weight: 500; }
+  .breadcrumb a:hover { color: var(--accent); }
+  .breadcrumb .sep { color: var(--text-faint); }
+
+  .page-head {
+    display: flex; align-items: flex-end; justify-content: space-between;
+    gap: 16px; margin-bottom: 22px; flex-wrap: wrap;
+  }
+  .page-head h1 { font-size: 24px; font-weight: 700; letter-spacing: -0.3px; }
+  .page-head p { color: var(--text-muted); margin-top: 3px; }
+  .page-actions { display: flex; gap: 10px; flex-wrap: wrap; }
+
+  .btn {
+    display: inline-flex; align-items: center; gap: 7px;
+    padding: 9px 16px;
+    border-radius: var(--radius-sm);
+    font-size: 13px; font-weight: 600;
+    font-family: inherit; cursor: pointer;
+    border: 1px solid transparent;
+    transition: background 0.12s ease;
+    white-space: nowrap;
+  }
+  .btn-primary { background: var(--accent); color: #fff; }
+  .btn-primary:hover { background: var(--accent-hover); }
+  .btn-outline { background: #fff; border-color: var(--border); color: var(--text); }
+  .btn-outline:hover { background: var(--neutral-soft); }
+  .btn-ghost { background: none; color: var(--text-muted); border-color: transparent; }
+  .btn-ghost:hover { background: var(--neutral-soft); color: var(--text); }
+  .btn-danger-soft { background: var(--danger-soft); color: var(--danger); }
+  .btn-danger-soft:hover { background: #fee2e2; }
+
+  /* ============ FORM SECTIONS ============ */
+  .section {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    margin-bottom: 20px;
+    overflow: hidden;
+  }
+  .section-head {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 15px 20px;
+    border-bottom: 1px solid var(--border);
+  }
+  .section-head h2 {
+    font-size: 15px; font-weight: 700;
+    display: flex; align-items: center; gap: 9px;
+  }
+  .section-head .step-num {
+    width: 22px; height: 22px; border-radius: 6px;
+    background: var(--accent-soft); color: var(--accent);
+    font-size: 12px; font-weight: 700;
+    display: inline-flex; align-items: center; justify-content: center;
+  }
+  .section-head .section-hint { font-size: 12.5px; color: var(--text-faint); }
+  .section-body { padding: 20px; }
+
+  /* Form grid */
+  .form-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 16px;
+  }
+  .form-grid .span-2 { grid-column: span 2; }
+  .form-grid .span-3 { grid-column: span 3; }
+  .field label {
+    display: block;
+    font-size: 12.5px; font-weight: 600;
+    color: var(--text-muted);
+    margin-bottom: 6px;
+  }
+  .field label .req { color: var(--danger); }
+  .field input, .field select, .field textarea {
+    width: 100%;
+    padding: 9px 12px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    font-size: 13.5px; font-family: inherit;
+    background: #fff; color: var(--text);
+    transition: border-color 0.12s ease;
+  }
+  .field textarea { resize: vertical; min-height: 80px; }
+  .field input:focus, .field select:focus, .field textarea:focus {
+    outline: 2px solid rgba(37,99,235,0.25);
+    border-color: var(--accent);
+  }
+  .field input[readonly] {
+    background: var(--bg);
+    color: var(--text-muted);
+    cursor: not-allowed;
+  }
+  .field .field-note { font-size: 12px; color: var(--text-faint); margin-top: 5px; }
+
+  .inline-select {
+    padding: 8px 10px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    font-size: 13px; font-family: inherit;
+    background: #fff; color: var(--text);
+    width: 100%;
+  }
+  .inline-select:focus { outline: 2px solid rgba(37,99,235,0.25); border-color: var(--accent); }
+
+  /* ============ BOTTOM ACTION BAR ============ */
+  .bottom-bar {
+    position: sticky;
+    bottom: 0;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    display: flex; align-items: center; justify-content: space-between;
+    gap: 14px;
+    padding: 14px 18px;
+    margin-top: 4px;
+    box-shadow: 0 -2px 12px rgba(15,23,42,0.04);
+    flex-wrap: wrap;
+  }
+  .bottom-bar .bar-total { font-size: 13.5px; color: var(--text-muted); }
+  .bottom-bar .bar-total strong { font-size: 16px; color: var(--accent); font-variant-numeric: tabular-nums; }
+  .bar-btns { display: flex; gap: 10px; flex-wrap: wrap; }
+
+  /* Footer */
+  .footer {
+    padding: 18px 28px;
+    text-align: center;
+    color: var(--text-faint); font-size: 12.5px;
+    border-top: 1px solid var(--border);
+    background: var(--surface);
+  }
+
+  /* ============ A4 PREVIEW OVERLAY ============ */
+  .preview-overlay {
+    position: fixed; inset: 0;
+    background: rgba(15,23,42,0.45);
+    z-index: 100;
+    display: none;
+    overflow-y: auto;
+    padding: 32px 16px;
+  }
+  .preview-overlay.visible { display: block; }
+  .preview-shell { max-width: 900px; margin: 0 auto; }
+  .preview-toolbar {
+    display: flex; align-items: center; justify-content: space-between;
+    gap: 12px; margin-bottom: 16px; flex-wrap: wrap;
+  }
+  .preview-toolbar .pt-title { color: #fff; font-weight: 600; font-size: 15px; display: flex; align-items: center; gap: 9px; }
+  .preview-toolbar .pt-actions { display: flex; gap: 10px; }
+  /* Toast */
+  .toast {
+    position: fixed; bottom: 24px; right: 24px;
+    background: #111827; color: #fff;
+    padding: 11px 18px; border-radius: var(--radius-sm);
+    font-size: 13px; font-weight: 500;
+    box-shadow: 0 8px 24px rgba(15,23,42,0.25);
+    z-index: 200;
+    display: none; align-items: center; gap: 9px;
+  }
+  .toast.visible { display: flex; }
+
+  .scrim {
+    position: fixed; inset: 0; background: rgba(15,23,42,0.35);
+    z-index: 55; display: none;
+  }
+  .scrim.visible { display: block; }
+
+  /* ============ A4 SHEET ============ */
+  .sheet {
+    --ink: #1f2f6b; --ink-2: #3b4a82; --ink-soft: #eef1fa; --ink-line: #c9d0e6;
+    --paper-text: #1b2340; --stamp: #5140b0;
+    width: 210mm; height: 297mm; background: #fff; padding: 9mm;
+    box-shadow: 0 1px 2px rgba(15,23,42,0.08), 0 12px 32px rgba(15,23,42,0.16);
+    display: flex;
+    font-family: "Hind", "Segoe UI", Arial, sans-serif; font-size: 13px; line-height: 1.45; color: var(--paper-text);
+    -webkit-print-color-adjust: exact; print-color-adjust: exact;
+  }
+  .q-frame {
+    flex: 1; min-height: 0; display: flex; flex-direction: column;
+    border: 2px solid var(--ink); outline: 1px solid var(--ink); outline-offset: 3px; margin: 4px;
+  }
+  .q-flow { flex: 1; min-height: 0; overflow: hidden; position: relative; display: flex; flex-direction: column; }
+  .q-pagefoot {
+    display: flex; justify-content: space-between; gap: 12px;
+    border-top: 1px solid var(--ink-line); padding: 6px 14px 7px; font-size: 10.5px; color: #7a819c;
+  }
+
+  .q-strip {
+    display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 12px;
+    padding: 9px 16px; border-bottom: 1px solid var(--ink-line); font-size: 12px; color: var(--ink-2);
+  }
+  .q-strip b { color: var(--paper-text); font-weight: 600; }
+  .q-doc-title { background: var(--ink); color: #fff; font-weight: 600; font-size: 11.5px; letter-spacing: 0.12em; padding: 4px 14px 3px; border-radius: 2px; white-space: nowrap; }
+  .q-strip .q-mob { text-align: right; line-height: 1.5; }
+
+  .q-head { text-align: center; padding: 14px 20px 11px; }
+  .q-brand { display: inline-flex; align-items: center; gap: 14px; }
+  .q-logo { width: 52px; height: 52px; object-fit: contain; }
+  .q-company { font-family: "Zilla Slab", Rockwell, Georgia, serif; font-weight: 700; font-size: 40px; line-height: 1; letter-spacing: 0.03em; color: var(--ink); }
+  .q-company-rule { display: flex; align-items: center; gap: 10px; justify-content: center; margin: 9px auto 7px; max-width: 540px; }
+  .q-company-rule::before, .q-company-rule::after { content: ""; flex: 1; border-top: 3px double var(--ink); }
+  .q-deals { font-size: 13px; font-weight: 600; padding: 0 6px; white-space: nowrap; }
+  .q-deals span { font-weight: 500; color: var(--ink-2); }
+  .q-address { font-size: 12px; color: var(--ink-2); }
+
+  .q-cont { display: flex; justify-content: space-between; align-items: baseline; gap: 16px; padding: 10px 16px 8px; border-bottom: 1.5px solid var(--ink); }
+  .q-cont .n { font-family: "Zilla Slab", Rockwell, Georgia, serif; font-weight: 700; font-size: 20px; color: var(--ink); }
+  .q-cont .r { font-size: 12px; color: var(--ink-2); text-align: right; }
+  .q-cont .r b { color: var(--paper-text); }
+  .q-cont-note { font-size: 11.5px; color: #7a819c; font-style: italic; padding: 7px 16px 0; }
+
+  .q-meta { display: flex; justify-content: space-between; gap: 16px; background: var(--ink-soft); border-top: 1.5px solid var(--ink); border-bottom: 1px solid var(--ink-line); padding: 7px 16px; font-size: 13px; }
+  .q-meta b { font-weight: 700; color: var(--ink); font-variant-numeric: tabular-nums; }
+
+  .q-parties { display: grid; grid-template-columns: 1.4fr 1fr; gap: 20px; padding: 11px 16px 4px; }
+  .q-to-label { font-size: 12px; color: var(--ink-2); margin-bottom: 2px; }
+  .q-to { padding-left: 34px; }
+  .q-to .name { font-size: 16px; font-weight: 700; line-height: 1.3; }
+  .q-to p { font-size: 12.5px; color: #3a4260; margin-top: 1px; }
+  .q-side { font-size: 12px; color: var(--ink-2); align-self: end; }
+  .q-side div { display: flex; justify-content: flex-end; gap: 8px; line-height: 1.8; }
+  .q-side b { color: var(--paper-text); font-weight: 600; }
+
+  .q-letter { padding: 6px 16px 10px; font-size: 12.5px; color: #3a4260; }
+  .q-letter .salute { color: var(--paper-text); margin-bottom: 2px; }
+  .q-letter p { text-indent: 34px; }
+  .q-fill { display: inline-block; min-width: 70px; border-bottom: 1px dotted var(--ink-2); color: var(--paper-text); font-weight: 600; text-indent: 0; text-align: center; padding: 0 4px; }
+
+  .q-table-wrap { padding: 8px 10px 0; }
+  .q-table { width: 100%; border-collapse: collapse; border: 1.5px solid var(--ink); table-layout: fixed; }
+  .q-table th { background: var(--ink); color: #fff; font-weight: 600; font-size: 12px; padding: 7px 10px 6px; text-align: left; border-left: 1px solid rgba(255,255,255,0.25); white-space: nowrap; }
+  .q-table th:first-child { border-left: none; }
+  .q-table td { padding: 7px 10px; font-size: 12.5px; vertical-align: top; border-left: 1px solid var(--ink); }
+  .q-table td:first-child { border-left: none; }
+  .q-table tbody tr + tr td { border-top: 1px dotted var(--ink-line); }
+  .q-table tbody tr.q-filler td { border-top: none; padding: 0; }
+  .q-table .c { text-align: center; }
+  .q-table .r { text-align: right; font-variant-numeric: tabular-nums; }
+  .q-table td.desc { font-weight: 600; }
+  .q-table tfoot td { border-top: 1px solid var(--ink); padding: 6px 10px; font-size: 12.5px; }
+  .q-table tfoot td.lbl { text-align: right; color: var(--ink-2); }
+  .q-table tfoot tr.grand td { background: var(--ink-soft); border-top: 1.5px solid var(--ink); font-size: 14px; font-weight: 700; color: var(--ink); padding: 8px 10px; }
+  .q-carry { font-size: 11.5px; color: #7a819c; font-style: italic; text-align: right; padding: 5px 12px 0; }
+
+  .q-closing { padding-top: 7px; }
+  .q-words { font-size: 12px; color: #3a4260; padding: 0 12px; }
+  .q-words b { color: var(--paper-text); font-weight: 600; }
+  .q-foot { display: grid; grid-template-columns: 1.35fr 1fr; gap: 20px; padding: 12px 16px 12px; align-items: end; }
+  .q-terms h4 { font-size: 13px; font-weight: 700; color: var(--ink); margin-bottom: 4px; }
+  .q-terms ol { padding-left: 18px; }
+  .q-terms li { font-size: 12px; color: #3a4260; line-height: 1.65; padding-left: 2px; }
+  .q-terms li.key { color: var(--paper-text); font-weight: 600; }
+  .q-sign { text-align: center; }
+  .q-sign .for { font-size: 12.5px; color: var(--ink-2); }
+  .q-sign .for b { color: var(--paper-text); font-weight: 600; }
+  .q-stamp-slot { height: 116px; display: flex; align-items: center; justify-content: center; }
+  .q-stamp { width: 106px; height: 106px; color: var(--stamp); transform: rotate(-11deg); opacity: 0.82; }
+  .q-stamp-empty { width: 96px; height: 96px; border: 1.5px dashed var(--ink-line); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 10.5px; color: #9aa1b8; }
+  .q-sign .auth { border-top: 1px solid var(--ink-2); display: inline-block; min-width: 180px; padding-top: 5px; font-size: 12.5px; font-weight: 600; }
+  .q-thanks { text-align: center; font-size: 10.5px; color: #7a819c; padding: 0 12px 4px; }
+
+
+  /* ============ TEMPLATE EDITOR ============ */
+  button:focus-visible, a:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .content { max-width: 1480px; }
+  .editor { display: grid; grid-template-columns: minmax(0, 1fr) minmax(440px, 1.05fr); gap: 24px; align-items: start; }
+  .editor .form-grid { grid-template-columns: repeat(2, 1fr); }
+  .editor .form-grid .span-3, .editor .form-grid .span-2 { grid-column: span 2; }
+  .field label .opt { font-weight: 500; color: var(--text-faint); }
+  .field input.invalid { border-color: var(--danger); }
+  .field-err { font-size: 12px; color: var(--danger); margin-top: 5px; display: none; }
+  .field-err.show { display: block; }
+
+  .seg { display: inline-flex; background: var(--neutral-soft); border-radius: var(--radius-sm); padding: 3px; gap: 2px; }
+  .seg button {
+    border: none; background: none; font: 500 12.5px var(--font); color: var(--text-muted);
+    padding: 6px 12px; border-radius: 5px; cursor: pointer; display: inline-flex; align-items: center; gap: 6px;
+  }
+  .seg button:hover { color: var(--text); }
+  .seg button.on { background: #fff; color: var(--text); font-weight: 600; box-shadow: 0 1px 2px rgba(15,23,42,0.08); }
+  .swatches { display: flex; gap: 8px; flex-wrap: wrap; }
+  .swatches button { width: 28px; height: 28px; border-radius: 50%; border: 2px solid #fff; box-shadow: 0 0 0 1px var(--border); cursor: pointer; }
+  .swatches button.on { box-shadow: 0 0 0 2px var(--text); }
+
+  /* uploads */
+  .upload { display: flex; gap: 12px; align-items: stretch; }
+  .up-prev {
+    width: 88px; height: 88px; flex-shrink: 0; border: 1px solid var(--border); border-radius: var(--radius-sm);
+    background: #fff; display: flex; align-items: center; justify-content: center; overflow: hidden;
+    color: var(--text-faint); font-size: 11.5px; text-align: center; padding: 6px;
+  }
+  .up-prev img { max-width: 100%; max-height: 100%; object-fit: contain; }
+  .drop {
+    flex: 1; min-width: 0; border: 1.5px dashed #cfd5df; border-radius: var(--radius-sm); background: var(--bg);
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px;
+    padding: 10px; text-align: center; cursor: pointer; color: var(--text-muted); font-size: 12.5px;
+    transition: border-color 0.12s ease, background 0.12s ease;
+  }
+  .drop:hover, .drop.drag { border-color: var(--accent); background: var(--accent-soft); }
+  .drop strong { color: var(--accent); font-weight: 600; }
+  .drop small { color: var(--text-faint); font-size: 11.5px; }
+  .drop input { display: none; }
+  .up-actions { display: flex; align-items: center; gap: 12px; margin-top: 6px; font-size: 12px; }
+  .link-btn { background: none; border: none; padding: 0; color: var(--accent); font: 600 12px var(--font); cursor: pointer; }
+  .link-btn.danger { color: var(--danger); }
+  .check { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--text); cursor: pointer; }
+  .check input { width: 15px; height: 15px; accent-color: var(--accent); }
+
+  .tokens { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 7px; align-items: center; font-size: 12px; color: var(--text-faint); }
+  .tokens button {
+    border: 1px solid var(--border); background: #fff; border-radius: 999px; padding: 2px 9px;
+    font: 500 11.5px var(--font); color: var(--text-muted); cursor: pointer;
+  }
+  .tokens button:hover { border-color: var(--accent); color: var(--accent); }
+
+  /* live preview panel */
+  .pv-panel {
+    position: sticky; top: 80px;
+    background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+    display: flex; flex-direction: column; max-height: calc(100vh - 176px);
+  }
+  .pv-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 12px 16px; border-bottom: 1px solid var(--border); flex-wrap: wrap; }
+  .pv-head h2 { font-size: 15px; font-weight: 700; display: flex; align-items: center; gap: 8px; }
+  .live-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--success); box-shadow: 0 0 0 3px var(--success-soft); }
+  .pv-note { font-size: 12px; color: var(--text-faint); padding: 8px 16px; border-bottom: 1px solid var(--border); background: var(--bg); display: flex; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+  .pv-warn { color: var(--warning); font-weight: 600; display: none; }
+  .pv-warn.show { display: inline; }
+  .pv-scroll { overflow: auto; background: #e8ebf0; padding: 18px; flex: 1; min-height: 0; border-radius: 0 0 var(--radius) var(--radius); }
+  .pv-slot { position: relative; margin: 0 auto; }
+  .pv-slot .sheet { position: absolute; top: 0; left: 0; transform-origin: top left; }
+
+  /* sheet extensions for templates */
+  .q-head.al-left { text-align: left; }
+  .q-head.al-right { text-align: right; }
+  .q-head.al-left .q-company-rule { justify-content: flex-start; max-width: none; margin-left: 0; }
+  .q-head.al-left .q-company-rule::before { display: none; }
+  .q-head.al-left .q-deals { padding-left: 0; }
+  .q-head.al-right .q-company-rule { justify-content: flex-end; max-width: none; margin-right: 0; }
+  .q-head.al-right .q-company-rule::after { display: none; }
+  .q-head.al-right .q-deals { padding-right: 0; }
+  .q-head.al-right .q-brand { flex-direction: row-reverse; }
+  .q-logo { width: auto; max-width: 120px; height: 54px; object-fit: contain; }
+  .q-sample { background: rgba(255, 214, 102, 0.28); border-radius: 2px; }
+  .q-stamp-slot { position: relative; }
+  .q-stamp-img { max-width: 110px; max-height: 110px; object-fit: contain; opacity: 0.9; transform: rotate(-8deg); }
+  .q-sig-img { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -46%); max-width: 150px; max-height: 60px; object-fit: contain; mix-blend-mode: multiply; }
+  .q-sign .person { font-size: 12px; color: #3a4260; margin-top: 3px; line-height: 1.4; }
+  .q-sign .person b { color: var(--paper-text); font-weight: 600; display: block; }
+
+  /* dialog */
+  .overlay { position: fixed; inset: 0; background: rgba(15,23,42,0.45); z-index: 100; display: none; padding: 16px; }
+  .overlay.visible { display: block; }
+  .dialog { max-width: 420px; margin: 14vh auto 0; background: var(--surface); border-radius: var(--radius); box-shadow: 0 20px 50px rgba(15,23,42,0.25); }
+  .dialog-head { padding: 18px 20px 4px; }
+  .dialog-head h3 { font-size: 16px; font-weight: 700; }
+  .dialog-head p { color: var(--text-muted); font-size: 13px; margin-top: 4px; }
+  .dialog-foot { display: flex; justify-content: flex-end; gap: 10px; padding: 16px 20px 18px; }
+  .btn-danger { background: var(--danger); color: #fff; }
+  .btn-danger:hover { background: #991b1b; }
+  .dirty-note { font-size: 13px; color: var(--text-muted); display: flex; align-items: center; gap: 8px; }
+  .dirty-note .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--text-faint); }
+  .dirty-note.dirty .dot { background: var(--warning); }
+
+  /* ============ RESPONSIVE ============ */
+  @media (max-width: 1180px) {
+    .editor { grid-template-columns: 1fr; }
+    .pv-panel { position: static; max-height: none; }
+    .pv-scroll { max-height: none; }
+  }
+  @media (max-width: 900px) {
+    .sidebar { transform: translateX(-100%); transition: transform 0.2s ease; }
+    .sidebar.open { transform: translateX(0); }
+    .main { margin-left: 0; }
+    .menu-btn { display: inline-flex; }
+    .topbar-search { display: none; }
+    .scrim.on { display: block; }
+  }
+  @media (max-width: 640px) {
+    .content { padding: 18px; }
+    .editor .form-grid { grid-template-columns: 1fr; }
+    .editor .form-grid .span-2, .editor .form-grid .span-3 { grid-column: span 1; }
+    .page-actions .btn { flex: 1; justify-content: center; }
+    .section-head .section-hint { display: none; }
+    .pv-scroll { padding: 10px; }
+    .bottom-bar .bar-btns { width: 100%; }
+    .bottom-bar .bar-btns .btn { flex: 1; justify-content: center; }
+  }
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+</head>
+<body>
+
+<div class="app">
+
+  <!-- ============ SIDEBAR ============ -->
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-logo">
+      <div class="logo-mark">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="9" y1="13" x2="15" y2="13"/><line x1="9" y1="17" x2="13" y2="17"/></svg>
+      </div>
+      <div class="logo-name">Quote<span>Flow</span></div>
+    </div>
+
+    <nav class="nav">
+      <div class="nav-label">Main</div>
+      <a class="nav-item" href="#">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="9" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="14" y="12" width="7" height="9" rx="1"/><rect x="3" y="16" width="7" height="5" rx="1"/></svg>
+        Dashboard
+      </a>
+      <a class="nav-item" href="quoteflow_quote_builder.html">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="9" y1="13" x2="15" y2="13"/><line x1="9" y1="17" x2="13" y2="17"/></svg>
+        Quotes <span class="nav-badge">128</span>
+      </a>
+      <a class="nav-item active" href="quoteflow_templates.html" aria-current="page">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/></svg>
+        Templates <span class="nav-badge">6</span>
+      </a>
+      <a class="nav-item" href="#">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+        Clients
+      </a>
+    </nav>
+
+    <div class="sidebar-bottom">
+      <a class="nav-item" href="#">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+        Settings
+      </a>
+      <div class="user-chip">
+        <div class="avatar">RS</div>
+        <div>
+          <div class="u-name">Rohit Sharma</div>
+          <div class="u-role">Sales Manager</div>
+        </div>
+      </div>
+    </div>
+  </aside>
+  <div class="scrim" id="scrim"></div>
+
+  <!-- ============ MAIN ============ -->
+  <div class="main">
+
+    <div class="topbar">
+      <button class="menu-btn" id="menuBtn" aria-label="Menu">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+      </button>
+      <div class="topbar-search">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        <input type="text" placeholder="Search quotes, clients..." aria-label="Search quotes and clients">
+      </div>
+      <div class="topbar-right">
+        <button class="icon-btn" title="Notifications">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+          <span class="dot"></span>
+        </button>
+        <button class="icon-btn" title="Help">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+        </button>
+      </div>
+    </div>
+
+
+
+    <div class="content">
+
+      <div class="breadcrumb">
+        <a href="quoteflow_templates.html">Templates</a>
+        <span class="sep">/</span>
+        <span id="crumb">Create Template</span>
+      </div>
+
+      <div class="page-head">
+        <div>
+          <h1 id="pageTitle">Create Quote Template</h1>
+          <p>Set up the reusable quotation format.</p>
+        </div>
+        <div class="page-actions">
+          <button class="btn btn-ghost" id="cancelTop">Cancel</button>
+          <button class="btn btn-primary" id="saveTop"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg> Save Template</button>
+        </div>
+      </div>
+
+      <div class="editor">
+        <!-- ================= LEFT: SETTINGS ================= -->
+        <div class="settings" id="settings">
+
+          <div class="section">
+            <div class="section-head">
+              <h2><span class="step-num">1</span> Template Information</h2>
+              <span class="section-hint">Letterhead details</span>
+            </div>
+            <div class="section-body">
+              <div class="form-grid">
+                <div class="field span-2">
+                  <label for="t_name">Template Name <span class="req">*</span></label>
+                  <input type="text" id="t_name" value="Hardware Quote" placeholder="e.g. Hardware Quote">
+                  <div class="field-note">Only you see this name — it isn't printed on the quote.</div>
+                  <div class="field-err" id="t_nameErr">Enter a template name.</div>
+                </div>
+                <div class="field span-2">
+                  <label for="t_company">Client / Company Name <span class="req">*</span></label>
+                  <input type="text" id="t_company" value="Himalayan Computers" placeholder="e.g. Himalayan Computers">
+                  <div class="field-err" id="t_companyErr">Enter the company name.</div>
+                </div>
+                <div class="field">
+                  <label for="t_gstin">GSTIN</label>
+                  <input type="text" id="t_gstin" value="02AAHFH7781K1Z9" placeholder="22AAAAA0000A1Z5" maxlength="15" style="text-transform:uppercase;">
+                  <div class="field-err" id="t_gstinErr">GSTIN should be 15 characters.</div>
+                </div>
+                <div class="field">
+                  <label for="t_email">Email</label>
+                  <input type="email" id="t_email" value="himalayancomp.shimla@gmail.com" placeholder="sales@company.com">
+                </div>
+                <div class="field">
+                  <label for="t_mob1">Mobile Number</label>
+                  <input type="text" id="t_mob1" value="94180-45521" placeholder="98XXX-XXXXX">
+                </div>
+                <div class="field">
+                  <label for="t_mob2">Alternate / Landline <span class="opt">(optional)</span></label>
+                  <input type="text" id="t_mob2" value="0177-2654410" placeholder="0177-XXXXXXX">
+                </div>
+                <div class="field span-2">
+                  <label for="t_address">Address</label>
+                  <textarea id="t_address" style="min-height:64px;">Shop 7, Mall Road, Shimla 171001 (H.P.)</textarea>
+                </div>
+                <div class="field span-2">
+                  <label for="t_tagline">Business Category / Tagline</label>
+                  <input type="text" id="t_tagline" value="Laptops, Desktops, Printers &amp; Peripherals" placeholder="What you deal in">
+                  <div class="field-note">Printed as “Deals in: …” under the company name.</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="section">
+            <div class="section-head">
+              <h2><span class="step-num">2</span> Company Branding</h2>
+              <span class="section-hint">How the header looks</span>
+            </div>
+            <div class="section-body">
+              <div class="form-grid">
+                <div class="field span-2">
+                  <label>Logo <span class="opt">(optional)</span></label>
+                  <div class="upload">
+                <div class="up-prev" id="logoPrev">No logo</div>
+                <label class="drop" id="logoDrop">
+                  <input type="file" id="logoFile" accept="image/png,image/jpeg,image/svg+xml,image/webp">
+                  <span><strong>Upload logo</strong> or drag it here</span>
+                  <small>PNG, JPG, SVG or WebP, up to 2 MB</small>
+                </label>
+              </div>
+              <div class="up-actions"><button type="button" class="link-btn danger" id="logoRemove" hidden>Remove</button><span class="field-err" id="logoErr"></span></div>
+                </div>
+                <div class="field span-2">
+                  <label for="t_display">Company name on letterhead</label>
+                  <input type="text" id="t_display" placeholder="Same as Client / Company Name">
+                  <div class="field-note">Leave blank to print the company name above. Use this for a shorter or stylised name.</div>
+                </div>
+                <div class="field">
+                  <label>Header alignment</label>
+                  <div class="seg" id="alignSeg" role="radiogroup" aria-label="Header alignment">
+                    <button type="button" data-al="left" role="radio" aria-checked="false">Left</button>
+                    <button type="button" data-al="center" class="on" role="radio" aria-checked="true">Center</button>
+                    <button type="button" data-al="right" role="radio" aria-checked="false">Right</button>
+                  </div>
+                </div>
+                <div class="field">
+                  <label>Accent colour</label>
+                  <div class="swatches" id="swatches"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="section">
+            <div class="section-head">
+              <h2><span class="step-num">3</span> Quote Settings</h2>
+              <span class="section-hint">Pre-filled on every new quote</span>
+            </div>
+            <div class="section-body">
+              <div class="form-grid">
+                <div class="field">
+                  <label for="t_title">Default quotation title</label>
+                  <input type="text" id="t_title" list="titleList" value="QUOTATION / PROFORMA INVOICE">
+                  <datalist id="titleList">
+                    <option value="QUOTATION / PROFORMA INVOICE"></option>
+                    <option value="QUOTATION"></option>
+                    <option value="PROFORMA INVOICE"></option>
+                    <option value="ESTIMATE"></option>
+                  </datalist>
+                </div>
+                <div class="field">
+                  <label for="t_gst">Default GST rate</label>
+                  <select class="inline-select" id="t_gst">
+                    <option value="0">0% (Exempt)</option>
+                    <option value="5">5%</option>
+                    <option value="12">12%</option>
+                    <option value="18" selected>18%</option>
+                    <option value="28">28%</option>
+                  </select>
+                </div>
+                <div class="field span-2">
+                  <label for="t_intro">Default introductory message</label>
+                  <textarea id="t_intro" style="min-height:76px;">While thanking you for your esteemed enquiry no. {enquiry_no} dated {enquiry_date}, we submit our lowest rates as under for favour of acceptance, subject to the terms and conditions given below.</textarea>
+                  <div class="tokens" id="tokens">Insert:
+                    <button type="button" data-token="{client_name}">Client name</button>
+                    <button type="button" data-token="{enquiry_no}">Enquiry no.</button>
+                    <button type="button" data-token="{enquiry_date}">Enquiry date</button>
+                  </div>
+                </div>
+                <div class="field span-2">
+                  <label for="t_terms">Default terms &amp; conditions</label>
+                  <textarea id="t_terms" style="min-height:84px;">Payment after installation against bill.
+Goods once sold will not be taken back.</textarea>
+                  <div class="field-note">One condition per line. GST, delivery, warranty and validity are added automatically.</div>
+                </div>
+                <div class="field">
+                  <label for="t_delivery">Default delivery period</label>
+                  <input type="text" id="t_delivery" value="30 days from purchase order">
+                </div>
+                <div class="field">
+                  <label for="t_warranty">Default warranty</label>
+                  <input type="text" id="t_warranty" value="Three years onsite">
+                </div>
+                <div class="field">
+                  <label for="t_validity">Default offer validity</label>
+                  <input type="text" id="t_validity" value="10 days from the above date">
+                </div>
+                <div class="field">
+                  <label for="t_notes">Default notes <span class="opt">(optional)</span></label>
+                  <input type="text" id="t_notes" value="" placeholder="e.g. Freight extra as applicable">
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="section">
+            <div class="section-head">
+              <h2><span class="step-num">4</span> Footer &amp; Signature</h2>
+              <span class="section-hint">Bottom-right of the quote</span>
+            </div>
+            <div class="section-body">
+              <div class="form-grid">
+                <div class="field">
+                  <label for="t_person">Authorized person name</label>
+                  <input type="text" id="t_person" value="Vikram Thakur" placeholder="e.g. Vikram Thakur">
+                </div>
+                <div class="field">
+                  <label for="t_designation">Designation</label>
+                  <input type="text" id="t_designation" value="Proprietor" placeholder="e.g. Proprietor">
+                </div>
+                <div class="field span-2">
+                  <label>Signature <span class="opt">(optional)</span></label>
+                  <div class="upload">
+                <div class="up-prev" id="sigPrev">No signature</div>
+                <label class="drop" id="sigDrop">
+                  <input type="file" id="sigFile" accept="image/png,image/jpeg,image/svg+xml,image/webp">
+                  <span><strong>Upload signature</strong> or drag it here</span>
+                  <small>Transparent PNG works best, up to 2 MB</small>
+                </label>
+              </div>
+              <div class="up-actions"><button type="button" class="link-btn danger" id="sigRemove" hidden>Remove</button><span class="field-err" id="sigErr"></span></div>
+                </div>
+                <div class="field span-2">
+                  <label>Company stamp <span class="opt">(optional)</span></label>
+                  <div class="upload">
+                <div class="up-prev" id="stampPrev">No stamp</div>
+                <label class="drop" id="stampDrop">
+                  <input type="file" id="stampFile" accept="image/png,image/jpeg,image/svg+xml,image/webp">
+                  <span><strong>Upload stamp</strong> or drag it here</span>
+                  <small>Round seal image, PNG or JPG, up to 2 MB</small>
+                </label>
+              </div>
+              <div class="up-actions"><button type="button" class="link-btn danger" id="stampRemove" hidden>Remove</button><span class="field-err" id="stampErr"></span></div>
+                  <label class="check" style="margin-top:10px;"><input type="checkbox" id="t_autoSeal" checked> Use a generated seal when no stamp is uploaded</label>
+                </div>
+                <div class="field span-2" id="sealTextRow">
+                  <label for="t_sealText">Seal city / text</label>
+                  <input type="text" id="t_sealText" value="Shimla (H.P.)">
+                </div>
+              </div>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- ================= RIGHT: LIVE PREVIEW ================= -->
+        <aside class="pv-panel" aria-label="Live preview">
+          <div class="pv-head">
+            <h2><span class="live-dot" aria-hidden="true"></span> Live Preview</h2>
+            <div class="seg" id="zoomSeg" aria-label="Preview size">
+              <button type="button" data-z="fit" class="on">Fit</button>
+              <button type="button" data-z="1">100%</button>
+            </div>
+          </div>
+          <div class="pv-note">
+            <span>A4, items and client are sample data</span>
+            <span class="pv-warn" id="pvWarn">Long content — signature may move to page 2 on real quotes</span>
+          </div>
+          <div class="pv-scroll" id="pvScroll"><div class="pv-slot" id="pvSlot"></div></div>
+        </aside>
+      </div>
+
+      <div class="bottom-bar" style="margin-top:20px;">
+        <div class="dirty-note" id="dirtyNote"><span class="dot"></span><span id="dirtyText">No changes yet</span></div>
+        <div class="bar-btns">
+          <button class="btn btn-ghost" id="cancelBottom">Cancel</button>
+          <button class="btn btn-primary" id="saveBottom"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg> Save Template</button>
+        </div>
+      </div>
+
+    </div>
+
+    <div class="footer">QuoteFlow © 2026</div>
+  </div>
+</div>
+
+<div class="overlay" id="discardOverlay" role="alertdialog" aria-modal="true" aria-labelledby="discardTitle">
+  <div class="dialog">
+    <div class="dialog-head">
+      <h3 id="discardTitle">Discard changes?</h3>
+      <p>Your template changes haven't been saved. Leaving now will lose them.</p>
+    </div>
+    <div class="dialog-foot">
+      <button class="btn btn-ghost" id="discardStay">Keep Editing</button>
+      <button class="btn btn-danger" id="discardGo">Discard Changes</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast" role="status" aria-live="polite">
+  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+  <span id="toastMsg"></span>
+</div>
+
+<script>
+(function () {
+  'use strict';
+
+  var INKS = {
+    navy:   { name: 'Navy',   v: ['#1f2f6b', '#3b4a82', '#eef1fa', '#c9d0e6'] },
+    teal:   { name: 'Teal',   v: ['#134e6f', '#3a6b88', '#ebf3f8', '#c3d8e5'] },
+    maroon: { name: 'Maroon', v: ['#6e1f2a', '#8a3b45', '#f8eef0', '#e3c8cc'] },
+    forest: { name: 'Forest', v: ['#1d5445', '#3c6d5f', '#ecf4f1', '#c3dad2'] },
+    slate:  { name: 'Slate',  v: ['#2e3a4e', '#4d5a70', '#eff1f5', '#cfd5df'] },
+    plum:   { name: 'Plum',   v: ['#4b2f7a', '#65508f', '#f2eef9', '#d6cbe8'] }
+  };
+  var SAMPLE = {
+    client: { name: 'Govt. Senior Secondary School', address: 'Sanjauli, Shimla (H.P.)' },
+    items: [
+      { desc: 'Desktop PC — Core i5, 8 GB RAM, 512 GB SSD, 19.5" monitor', qty: 8, rate: 54900 },
+      { desc: 'Ink tank colour printer — print / scan / copy', qty: 2, rate: 14500 },
+      { desc: 'Line-interactive UPS — 1 kVA', qty: 8, rate: 5200 }
+    ]
+  };
+
+  var state = { align: 'center', ink: 'forest', logo: '', sig: '', stamp: '', zoom: 'fit' };
+  var dirty = false;
+
+  /* edit mode demo: ?edit opens with a heading for editing */
+  if (/[?&]edit\b/.test(location.search)) {
+    document.getElementById('pageTitle').textContent = 'Edit Quote Template';
+    document.getElementById('crumb').textContent = 'Edit Template';
+    document.title = 'QuoteFlow — Edit Quote Template';
+  }
+
+  /* ---------- helpers ---------- */
+  function $(id) { return document.getElementById(id); }
+  function v(id) { return $(id).value.trim(); }
+  function esc(s) { return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
+  function num(n) { return (+n || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
+  function pad2(n) { return n < 10 ? '0' + n : String(n); }
+
+  var ONES = ['', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine', 'Ten', 'Eleven', 'Twelve', 'Thirteen', 'Fourteen', 'Fifteen', 'Sixteen', 'Seventeen', 'Eighteen', 'Nineteen'];
+  var TENS = ['', '', 'Twenty', 'Thirty', 'Forty', 'Fifty', 'Sixty', 'Seventy', 'Eighty', 'Ninety'];
+  function two(n) { return n < 20 ? ONES[n] : TENS[Math.floor(n / 10)] + (n % 10 ? ' ' + ONES[n % 10] : ''); }
+  function three(n) { var h = Math.floor(n / 100), r = n % 100; return (h ? ONES[h] + ' Hundred' + (r ? ' ' : '') : '') + (r ? two(r) : ''); }
+  function intWords(n) {
+    if (n === 0) return 'Zero';
+    var o = [], cr = Math.floor(n / 1e7); n %= 1e7; var lk = Math.floor(n / 1e5); n %= 1e5; var th = Math.floor(n / 1000); n %= 1000;
+    if (cr) o.push(intWords(cr) + ' Crore'); if (lk) o.push(two(lk) + ' Lakh'); if (th) o.push(two(th) + ' Thousand'); if (n) o.push(three(n));
+    return o.join(' ');
+  }
+  function amountWords(x) { var p = Math.round(x * 100), r = Math.floor(p / 100), ps = p % 100; return 'Rupees ' + intWords(r) + (ps ? ' and ' + two(ps) + ' Paise' : '') + ' Only'; }
+
+  function stampSvg(name, place) {
+    var ring = (name + ' \u2605 ' + place + ' \u2605 ').toUpperCase();
+    return '<svg class="q-stamp" viewBox="0 0 120 120" aria-hidden="true">' +
+      '<defs><path id="qArc" d="M60,60 m-45,0 a45,45 0 1,1 90,0 a45,45 0 1,1 -90,0"/></defs>' +
+      '<circle cx="60" cy="60" r="57" fill="none" stroke="currentColor" stroke-width="2.4"/>' +
+      '<circle cx="60" cy="60" r="53" fill="none" stroke="currentColor" stroke-width="0.8"/>' +
+      '<circle cx="60" cy="60" r="36" fill="none" stroke="currentColor" stroke-width="1.2"/>' +
+      '<text font-family="Hind, Arial, sans-serif" font-size="9.2" font-weight="700" fill="currentColor"><textPath href="#qArc" textLength="279" lengthAdjust="spacing">' + esc(ring) + '</textPath></text>' +
+      '<text x="60" y="56" text-anchor="middle" font-family="Hind, Arial, sans-serif" font-size="8" font-weight="700" fill="currentColor" letter-spacing="0.6">AUTHORISED</text>' +
+      '<line x1="34" y1="61" x2="86" y2="61" stroke="currentColor" stroke-width="0.8"/>' +
+      '<text x="60" y="71" text-anchor="middle" font-family="Hind, Arial, sans-serif" font-size="8" font-weight="700" fill="currentColor" letter-spacing="0.6">SIGNATORY</text></svg>';
+  }
+
+  /* ---------- build the A4 sheet from the form ---------- */
+  function introHtml(text) {
+    var out = esc(text || '');
+    out = out.replace(/\{enquiry_no\}/g, '<span class="q-fill"></span>')
+             .replace(/\{enquiry_date\}/g, '<span class="q-fill"></span>')
+             .replace(/\{client_name\}/g, '<span class="q-sample">' + esc(SAMPLE.client.name) + '</span>');
+    return out;
+  }
+
+  function sheetHtml() {
+    var company = v('t_company') || 'Your Company Name';
+    var display = v('t_display') || company;
+    var ink = INKS[state.ink].v;
+    var gstPct = +$('t_gst').value || 0;
+    var sub = SAMPLE.items.reduce(function (s, it) { return s + it.qty * it.rate; }, 0);
+    var gst = sub * gstPct / 100, grand = sub + gst;
+
+    var rows = SAMPLE.items.map(function (it, i) {
+      return '<tr><td class="c">' + pad2(i + 1) + '</td><td class="desc">' + esc(it.desc) + '</td><td class="c">' + it.qty +
+        '</td><td class="r">' + num(it.rate) + '</td><td class="r">' + num(it.qty * it.rate) + '</td></tr>';
+    }).join('') + '<tr class="q-filler"><td id="fillCell" style="height:0"></td><td></td><td></td><td></td><td></td></tr>';
+
+    var terms = [];
+    if (gstPct > 0) terms.push('<li class="key">GST extra @ ' + gstPct + '% (included in Grand Total above)</li>');
+    if (v('t_delivery')) terms.push('<li>Delivery period: ' + esc(v('t_delivery')) + '</li>');
+    if (v('t_warranty')) terms.push('<li>Warranty: ' + esc(v('t_warranty')) + '</li>');
+    if (v('t_validity')) terms.push('<li>Validity of this offer: ' + esc(v('t_validity')) + '</li>');
+    $('t_terms').value.split('\n').map(function (l) { return l.trim().replace(/^\d+[.)]\s*/, ''); }).filter(Boolean)
+      .forEach(function (l) { terms.push('<li>' + esc(l) + '</li>'); });
+    if (v('t_notes')) terms.push('<li>' + esc(v('t_notes')) + '</li>');
+
+    var seal = state.stamp ? '<img class="q-stamp-img" src="' + state.stamp + '" alt="">'
+      : ($('t_autoSeal').checked ? stampSvg(company, v('t_sealText') || 'India') : '');
+    var sig = state.sig ? '<img class="q-sig-img" src="' + state.sig + '" alt="">' : '';
+    var person = (v('t_person') || v('t_designation'))
+      ? '<div class="person">' + (v('t_person') ? '<b>' + esc(v('t_person')) + '</b>' : '') + esc(v('t_designation')) + '</div>' : '';
+
+    return '<div class="sheet" style="--ink:' + ink[0] + ';--ink-2:' + ink[1] + ';--ink-soft:' + ink[2] + ';--ink-line:' + ink[3] + ';">' +
+      '<div class="q-frame"><div class="q-flow" id="pvFlow">' +
+      '<div class="q-strip"><div>GSTIN: <b>' + esc(v('t_gstin').toUpperCase() || '—') + '</b></div>' +
+        '<div class="q-doc-title">' + esc(v('t_title') || 'QUOTATION') + '</div>' +
+        '<div class="q-mob">Mob. <b>' + esc(v('t_mob1') || '—') + '</b>' + (v('t_mob2') ? '<br>' + esc(v('t_mob2')) : '') + '</div></div>' +
+      '<div class="q-head al-' + state.align + '">' +
+        '<div class="q-brand">' + (state.logo ? '<img class="q-logo" src="' + state.logo + '" alt="">' : '') +
+        '<div class="q-company">' + esc(display) + '</div></div>' +
+        '<div class="q-company-rule">' + (v('t_tagline') ? '<div class="q-deals">Deals in: <span>' + esc(v('t_tagline')) + '</span></div>' : '') + '</div>' +
+        '<div class="q-address">' + esc(v('t_address')).replace(/\n/g, ', ') + (v('t_email') ? ' &nbsp;|&nbsp; E-mail: ' + esc(v('t_email')) : '') + '</div></div>' +
+      '<div class="q-meta"><div>Ref. No. <b>QT-2026-00131</b></div><div>Dated: <b>24/09/2026</b></div></div>' +
+      '<div class="q-parties"><div><div class="q-to-label">To</div><div class="q-to"><div class="name">' + esc(SAMPLE.client.name) +
+        '</div><p>' + esc(SAMPLE.client.address) + '</p></div></div><div class="q-side"><div>Valid until <b>04/10/2026</b></div></div></div>' +
+      '<div class="q-letter"><div class="salute">Dear Sir/Madam,</div><p>' + introHtml($('t_intro').value) + '</p></div>' +
+      '<div class="q-table-wrap"><table class="q-table"><colgroup><col style="width:62px"><col><col style="width:62px"><col style="width:104px"><col style="width:122px"></colgroup>' +
+        '<thead><tr><th class="c">Sr. No.</th><th>Item Description</th><th class="c">Qty.</th><th class="r">Rate (₹)</th><th class="r">Amount (₹)</th></tr></thead>' +
+        '<tbody>' + rows + '</tbody><tfoot>' +
+        '<tr><td colspan="4" class="lbl">Sub Total</td><td class="r">' + num(sub) + '</td></tr>' +
+        (gstPct > 0 ? '<tr><td colspan="4" class="lbl">GST @ ' + gstPct + '%</td><td class="r">' + num(gst) + '</td></tr>' : '') +
+        '<tr class="grand"><td colspan="4" class="lbl" style="color:inherit">Grand Total</td><td class="r">₹ ' + num(grand) + '</td></tr></tfoot></table></div>' +
+      '<div class="q-closing"><div class="q-words">Amount in words: <b>' + esc(amountWords(grand)) + '</b></div>' +
+        '<div class="q-foot"><div class="q-terms"><h4>Terms &amp; Conditions</h4><ol>' + (terms.join('') || '<li>—</li>') + '</ol></div>' +
+        '<div class="q-sign"><div class="for">For: <b>' + esc(company) + '</b></div>' +
+          '<div class="q-stamp-slot">' + seal + sig + '</div>' +
+          '<div class="auth">Auth. Signatory</div>' + person + '</div></div>' +
+        '<div class="q-thanks">Thank you for the opportunity to quote. This is a computer-generated quotation.</div></div>' +
+      '</div><div class="q-pagefoot"><span>' + esc(company) + '</span><span>Page 1 of 1</span></div></div></div>';
+  }
+
+  var slot = $('pvSlot'), scroller = $('pvScroll');
+  function render() {
+    slot.innerHTML = sheetHtml();
+    /* stretch the ruled table to the bottom of the page */
+    var flow = $('pvFlow'), cell = $('fillCell');
+    var last = flow.lastElementChild;
+    var slack = Math.floor(flow.clientHeight - (last.offsetTop + last.offsetHeight) - 4);
+    cell.style.height = Math.max(0, slack) + 'px';
+    $('pvWarn').classList.toggle('show', flow.scrollHeight > flow.clientHeight + 1);
+    fit();
+  }
+  function fit() {
+    var sh = slot.querySelector('.sheet'); if (!sh) return;
+    var avail = scroller.clientWidth - 36;
+    var sc = state.zoom === 'fit' ? Math.min(1, avail / sh.offsetWidth) : 1;
+    sh.style.transform = 'scale(' + sc + ')';
+    slot.style.width = sh.offsetWidth * sc + 'px';
+    slot.style.height = sh.offsetHeight * sc + 'px';
+  }
+  window.addEventListener('resize', fit);
+
+  /* ---------- dirty tracking ---------- */
+  function markDirty() {
+    dirty = true;
+    $('dirtyNote').classList.add('dirty');
+    $('dirtyText').textContent = 'Unsaved changes';
+  }
+  var raf = null;
+  function schedule() { markDirty(); if (raf) cancelAnimationFrame(raf); raf = requestAnimationFrame(render); }
+  $('settings').addEventListener('input', function (e) { if (e.target.type !== 'file') schedule(); });
+  $('settings').addEventListener('change', function (e) {
+    if (e.target.id === 't_autoSeal') $('sealTextRow').style.display = e.target.checked ? '' : 'none';
+    if (e.target.type !== 'file') schedule();
+  });
+
+  /* ---------- segmented controls + swatches ---------- */
+  function segSelect(seg, attr, val) {
+    seg.querySelectorAll('button').forEach(function (b) {
+      var on = b.getAttribute(attr) === val; b.classList.toggle('on', on);
+      if (b.hasAttribute('aria-checked')) b.setAttribute('aria-checked', String(on));
+    });
+  }
+  $('alignSeg').addEventListener('click', function (e) {
+    var b = e.target.closest('button'); if (!b) return;
+    state.align = b.getAttribute('data-al'); segSelect(this, 'data-al', state.align); schedule();
+  });
+  $('zoomSeg').addEventListener('click', function (e) {
+    var b = e.target.closest('button'); if (!b) return;
+    state.zoom = b.getAttribute('data-z') === 'fit' ? 'fit' : 1; segSelect(this, 'data-z', b.getAttribute('data-z')); fit();
+  });
+  var sw = $('swatches');
+  sw.innerHTML = Object.keys(INKS).map(function (k) {
+    return '<button type="button" data-ink="' + k + '" style="background:' + INKS[k].v[0] + '" aria-label="' + INKS[k].name + '" title="' + INKS[k].name + '"></button>';
+  }).join('');
+  function pickInk(k) {
+    state.ink = k;
+    sw.querySelectorAll('button').forEach(function (b) { var on = b.getAttribute('data-ink') === k; b.classList.toggle('on', on); b.setAttribute('aria-pressed', String(on)); });
+  }
+  sw.addEventListener('click', function (e) { var b = e.target.closest('[data-ink]'); if (b) { pickInk(b.getAttribute('data-ink')); schedule(); } });
+
+  /* ---------- intro tokens ---------- */
+  $('tokens').addEventListener('click', function (e) {
+    var b = e.target.closest('[data-token]'); if (!b) return;
+    var ta = $('t_intro'), tok = b.getAttribute('data-token');
+    var s = ta.selectionStart, en = ta.selectionEnd;
+    ta.value = ta.value.slice(0, s) + tok + ta.value.slice(en);
+    ta.focus(); ta.selectionStart = ta.selectionEnd = s + tok.length;
+    schedule();
+  });
+
+  /* ---------- image uploads (logo / signature / stamp) ---------- */
+  var LABELS = { logo: 'No logo', sig: 'No signature', stamp: 'No stamp' };
+  function setImage(key, dataUrl) {
+    state[key] = dataUrl || '';
+    $(key + 'Prev').innerHTML = dataUrl ? '<img src="' + dataUrl + '" alt="">' : LABELS[key];
+    $(key + 'Remove').hidden = !dataUrl;
+    if (key === 'stamp') $('t_autoSeal').closest('.check').style.opacity = dataUrl ? '0.5' : '1';
+    schedule();
+  }
+  function readFile(key, file) {
+    var err = $(key + 'Err');
+    err.classList.remove('show');
+    if (!file) return;
+    if (!/^image\/(png|jpeg|svg\+xml|webp)$/.test(file.type)) { err.textContent = 'Use a PNG, JPG, SVG or WebP image.'; err.classList.add('show'); return; }
+    if (file.size > 2 * 1024 * 1024) { err.textContent = 'This file is larger than 2 MB. Choose a smaller image.'; err.classList.add('show'); return; }
+    var r = new FileReader();
+    r.onload = function () { setImage(key, r.result); showToast((key === 'sig' ? 'Signature' : key === 'stamp' ? 'Stamp' : 'Logo') + ' added'); };
+    r.readAsDataURL(file);
+  }
+  ['logo', 'sig', 'stamp'].forEach(function (key) {
+    var drop = $(key + 'Drop'), input = $(key + 'File');
+    input.addEventListener('change', function () { readFile(key, input.files[0]); input.value = ''; });
+    ['dragenter', 'dragover'].forEach(function (ev) { drop.addEventListener(ev, function (e) { e.preventDefault(); drop.classList.add('drag'); }); });
+    ['dragleave', 'drop'].forEach(function (ev) { drop.addEventListener(ev, function (e) { e.preventDefault(); drop.classList.remove('drag'); }); });
+    drop.addEventListener('drop', function (e) { readFile(key, e.dataTransfer.files[0]); });
+    $(key + 'Remove').addEventListener('click', function () { setImage(key, ''); });
+  });
+
+  /* ---------- save / cancel ---------- */
+  function validate() {
+    var ok = true;
+    [['t_name', 't_nameErr'], ['t_company', 't_companyErr']].forEach(function (p) {
+      var empty = !v(p[0]);
+      $(p[0]).classList.toggle('invalid', empty); $(p[1]).classList.toggle('show', empty);
+      if (empty && ok) { $(p[0]).focus(); ok = false; }
+    });
+    var g = v('t_gstin'), badG = g && g.length !== 15;
+    $('t_gstin').classList.toggle('invalid', badG); $('t_gstinErr').classList.toggle('show', badG);
+    if (badG && ok) { $('t_gstin').focus(); ok = false; }
+    return ok;
+  }
+  ['t_name', 't_company', 't_gstin'].forEach(function (id) {
+    $(id).addEventListener('input', function () { $(id).classList.remove('invalid'); $(id + 'Err').classList.remove('show'); });
+  });
+  function save() {
+    if (!validate()) { showToast('Fill in the highlighted fields to save'); return; }
+    dirty = false;
+    $('dirtyNote').classList.remove('dirty');
+    $('dirtyText').textContent = 'Saved at ' + new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' });
+    showToast('Template “' + v('t_name') + '” saved');
+  }
+  $('saveTop').addEventListener('click', save);
+  $('saveBottom').addEventListener('click', save);
+
+  var overlay = $('discardOverlay');
+  function leave() { window.location.href = 'quoteflow_templates.html'; }
+  function cancel() {
+    if (!dirty) { leave(); return; }
+    overlay.classList.add('visible'); $('discardStay').focus();
+  }
+  $('cancelTop').addEventListener('click', cancel);
+  $('cancelBottom').addEventListener('click', cancel);
+  $('discardStay').addEventListener('click', function () { overlay.classList.remove('visible'); });
+  $('discardGo').addEventListener('click', leave);
+  overlay.addEventListener('click', function (e) { if (e.target === overlay) overlay.classList.remove('visible'); });
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape') overlay.classList.remove('visible');
+    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's') { e.preventDefault(); save(); }
+  });
+
+  /* mobile sidebar */
+  var sidebar = $('sidebar'), scrim = $('scrim');
+  $('menuBtn').addEventListener('click', function () { sidebar.classList.toggle('open'); scrim.classList.toggle('on'); });
+  scrim.addEventListener('click', function () { sidebar.classList.remove('open'); scrim.classList.remove('on'); });
+
+  pickInk(state.ink);
+  render();
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(render);
+})();
+
+var toastTimer;
+function showToast(msg) {
+  var t = document.getElementById('toast');
+  document.getElementById('toastMsg').textContent = msg;
+  t.classList.add('visible');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(function () { t.classList.remove('visible'); }, 2600);
+}
+</script>
+
+</body>
+</html>

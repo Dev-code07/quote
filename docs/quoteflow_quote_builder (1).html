@@ -1,0 +1,1338 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>QuoteFlow — Create New Quote</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Hind:wght@400;500;600;700&family=Zilla+Slab:wght@600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #f4f5f7;
+    --surface: #ffffff;
+    --border: #e4e7ec;
+    --text: #1f2937;
+    --text-muted: #6b7280;
+    --text-faint: #9ca3af;
+    --accent: #2563eb;
+    --accent-hover: #1d4ed8;
+    --accent-soft: #eff6ff;
+    --success: #15803d;
+    --success-soft: #f0fdf4;
+    --warning: #b45309;
+    --warning-soft: #fffbeb;
+    --info: #0369a1;
+    --info-soft: #f0f9ff;
+    --danger: #b91c1c;
+    --danger-soft: #fef2f2;
+    --neutral-soft: #f3f4f6;
+    --radius: 8px;
+    --radius-sm: 6px;
+    --font: "Segoe UI", "Inter", "Helvetica Neue", Arial, sans-serif;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { height: 100%; }
+  body {
+    font-family: var(--font);
+    background: var(--bg);
+    color: var(--text);
+    font-size: 14px;
+    line-height: 1.5;
+  }
+
+  /* ============ LAYOUT ============ */
+  .app { display: flex; min-height: 100vh; }
+
+  /* ============ SIDEBAR ============ */
+  .sidebar {
+    width: 232px;
+    background: var(--surface);
+    border-right: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    position: fixed;
+    top: 0; left: 0; bottom: 0;
+    z-index: 60;
+  }
+  .sidebar-logo {
+    display: flex; align-items: center; gap: 10px;
+    padding: 18px 20px;
+    border-bottom: 1px solid var(--border);
+  }
+  .sidebar-logo .logo-mark {
+    width: 30px; height: 30px;
+    background: var(--accent);
+    border-radius: 7px;
+    display: flex; align-items: center; justify-content: center;
+    color: #fff; flex-shrink: 0;
+  }
+  .sidebar-logo .logo-name { font-size: 16px; font-weight: 700; letter-spacing: -0.2px; }
+  .sidebar-logo .logo-name span { color: var(--accent); }
+
+  .nav { flex: 1; padding: 14px 12px; overflow-y: auto; }
+  .nav-label {
+    font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em;
+    color: var(--text-faint); padding: 8px 10px 6px;
+  }
+  .nav-item {
+    display: flex; align-items: center; gap: 10px;
+    padding: 9px 10px;
+    border-radius: var(--radius-sm);
+    color: var(--text-muted);
+    font-weight: 500;
+    cursor: pointer;
+    margin-bottom: 2px;
+    text-decoration: none;
+    transition: background 0.12s ease, color 0.12s ease;
+  }
+  .nav-item svg { flex-shrink: 0; }
+  .nav-item:hover { background: var(--neutral-soft); color: var(--text); }
+  .nav-item.active {
+    background: var(--accent-soft);
+    color: var(--accent);
+    font-weight: 600;
+  }
+  .nav-badge {
+    margin-left: auto;
+    background: var(--neutral-soft);
+    color: var(--text-muted);
+    font-size: 11px; font-weight: 600;
+    padding: 1px 7px; border-radius: 999px;
+  }
+  .nav-item.active .nav-badge { background: #dbeafe; color: var(--accent); }
+
+  .sidebar-bottom {
+    border-top: 1px solid var(--border);
+    padding: 10px 12px 14px;
+  }
+  .user-chip {
+    display: flex; align-items: center; gap: 10px;
+    padding: 8px 10px;
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+  }
+  .user-chip:hover { background: var(--neutral-soft); }
+  .avatar {
+    width: 32px; height: 32px; border-radius: 50%;
+    background: #1e40af; color: #fff;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 12px; font-weight: 600; flex-shrink: 0;
+  }
+  .user-chip .u-name { font-size: 13px; font-weight: 600; }
+  .user-chip .u-role { font-size: 11px; color: var(--text-faint); }
+
+  /* ============ MAIN ============ */
+  .main {
+    flex: 1;
+    margin-left: 232px;
+    display: flex; flex-direction: column;
+    min-width: 0;
+  }
+
+  /* Topbar */
+  .topbar {
+    height: 60px;
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; gap: 14px;
+    padding: 0 28px;
+    position: sticky; top: 0; z-index: 50;
+  }
+  .menu-btn {
+    display: none;
+    background: none; border: 1px solid var(--border); border-radius: var(--radius-sm);
+    width: 36px; height: 36px; cursor: pointer; color: var(--text-muted);
+    align-items: center; justify-content: center;
+  }
+  .topbar-search {
+    flex: 0 1 340px;
+    position: relative;
+    color: var(--text-faint);
+  }
+  .topbar-search input {
+    width: 100%;
+    padding: 8px 12px 8px 34px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    font-size: 13px; font-family: inherit;
+    background: var(--bg);
+    color: var(--text);
+  }
+  .topbar-search input:focus { outline: 2px solid rgba(37,99,235,0.25); border-color: var(--accent); background: #fff; }
+  .topbar-search svg { position: absolute; left: 11px; top: 50%; transform: translateY(-50%); }
+  .topbar-right { margin-left: auto; display: flex; align-items: center; gap: 10px; }
+  .icon-btn {
+    width: 36px; height: 36px;
+    border: 1px solid var(--border); border-radius: var(--radius-sm);
+    background: #fff; color: var(--text-muted); cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    position: relative;
+  }
+  .icon-btn:hover { background: var(--neutral-soft); color: var(--text); }
+  .icon-btn .dot {
+    position: absolute; top: 7px; right: 8px;
+    width: 7px; height: 7px; border-radius: 50%;
+    background: var(--danger); border: 1.5px solid #fff;
+  }
+
+  /* Content */
+  .content { padding: 28px; flex: 1; max-width: 1180px; width: 100%; margin: 0 auto; }
+
+  /* Breadcrumb */
+  .breadcrumb {
+    display: flex; align-items: center; gap: 7px;
+    font-size: 12.5px; color: var(--text-faint);
+    margin-bottom: 10px;
+  }
+  .breadcrumb a { color: var(--text-muted); text-decoration: none; font-weight: 500; }
+  .breadcrumb a:hover { color: var(--accent); }
+  .breadcrumb .sep { color: var(--text-faint); }
+
+  .page-head {
+    display: flex; align-items: flex-end; justify-content: space-between;
+    gap: 16px; margin-bottom: 22px; flex-wrap: wrap;
+  }
+  .page-head h1 { font-size: 24px; font-weight: 700; letter-spacing: -0.3px; }
+  .page-head p { color: var(--text-muted); margin-top: 3px; }
+  .page-actions { display: flex; gap: 10px; flex-wrap: wrap; }
+
+  .btn {
+    display: inline-flex; align-items: center; gap: 7px;
+    padding: 9px 16px;
+    border-radius: var(--radius-sm);
+    font-size: 13px; font-weight: 600;
+    font-family: inherit; cursor: pointer;
+    border: 1px solid transparent;
+    transition: background 0.12s ease;
+    white-space: nowrap;
+  }
+  .btn-primary { background: var(--accent); color: #fff; }
+  .btn-primary:hover { background: var(--accent-hover); }
+  .btn-outline { background: #fff; border-color: var(--border); color: var(--text); }
+  .btn-outline:hover { background: var(--neutral-soft); }
+  .btn-ghost { background: none; color: var(--text-muted); border-color: transparent; }
+  .btn-ghost:hover { background: var(--neutral-soft); color: var(--text); }
+  .btn-danger-soft { background: var(--danger-soft); color: var(--danger); }
+  .btn-danger-soft:hover { background: #fee2e2; }
+
+  /* ============ FORM SECTIONS ============ */
+  .section {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    margin-bottom: 20px;
+    overflow: hidden;
+  }
+  .section-head {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 15px 20px;
+    border-bottom: 1px solid var(--border);
+  }
+  .section-head h2 {
+    font-size: 15px; font-weight: 700;
+    display: flex; align-items: center; gap: 9px;
+  }
+  .section-head .step-num {
+    width: 22px; height: 22px; border-radius: 6px;
+    background: var(--accent-soft); color: var(--accent);
+    font-size: 12px; font-weight: 700;
+    display: inline-flex; align-items: center; justify-content: center;
+  }
+  .section-head .section-hint { font-size: 12.5px; color: var(--text-faint); }
+  .section-body { padding: 20px; }
+
+  /* Form grid */
+  .form-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 16px;
+  }
+  .form-grid .span-2 { grid-column: span 2; }
+  .form-grid .span-3 { grid-column: span 3; }
+  .field label {
+    display: block;
+    font-size: 12.5px; font-weight: 600;
+    color: var(--text-muted);
+    margin-bottom: 6px;
+  }
+  .field label .req { color: var(--danger); }
+  .field input, .field select, .field textarea {
+    width: 100%;
+    padding: 9px 12px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    font-size: 13.5px; font-family: inherit;
+    background: #fff; color: var(--text);
+    transition: border-color 0.12s ease;
+  }
+  .field textarea { resize: vertical; min-height: 80px; }
+  .field input:focus, .field select:focus, .field textarea:focus {
+    outline: 2px solid rgba(37,99,235,0.25);
+    border-color: var(--accent);
+  }
+  .field input[readonly] {
+    background: var(--bg);
+    color: var(--text-muted);
+    cursor: not-allowed;
+  }
+  .field .field-note { font-size: 12px; color: var(--text-faint); margin-top: 5px; }
+
+  /* Template chip */
+  .template-chip {
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 8px 12px;
+    background: var(--accent-soft);
+    border: 1px solid #dbeafe;
+    color: var(--accent);
+    border-radius: var(--radius-sm);
+    font-size: 13px; font-weight: 600;
+  }
+  .template-chip a { color: var(--accent); font-weight: 500; text-decoration: underline; margin-left: 4px; }
+
+  /* ============ ITEMS TABLE ============ */
+  .table-wrap { overflow-x: auto; }
+  table.items { width: 100%; border-collapse: collapse; min-width: 720px; }
+  table.items thead th {
+    text-align: left;
+    font-size: 11px; font-weight: 600;
+    text-transform: uppercase; letter-spacing: 0.05em;
+    color: var(--text-faint);
+    padding: 10px 12px;
+    background: #fafafa;
+    border-bottom: 1px solid var(--border);
+    white-space: nowrap;
+  }
+  table.items tbody td {
+    padding: 8px 10px;
+    border-bottom: 1px solid var(--border);
+    vertical-align: middle;
+  }
+  table.items tbody tr:last-child td { border-bottom: none; }
+  table.items tbody tr:hover { background: #fafbfd; }
+  .sr-no { width: 46px; color: var(--text-faint); font-size: 13px; text-align: center; }
+  .cell-input {
+    width: 100%;
+    padding: 8px 10px;
+    border: 1px solid transparent;
+    border-radius: var(--radius-sm);
+    font-size: 13.5px; font-family: inherit;
+    background: transparent; color: var(--text);
+  }
+  .cell-input:hover { border-color: var(--border); background: #fff; }
+  .cell-input:focus { outline: none; border-color: var(--accent); background: #fff; box-shadow: 0 0 0 2px rgba(37,99,235,0.18); }
+  input.cell-qty, input.cell-rate, .amount-cell { text-align: right; font-variant-numeric: tabular-nums; }
+  .cell-qty, .cell-rate { max-width: 110px; margin-left: auto; display: block; }
+  .amount-cell { font-weight: 600; white-space: nowrap; padding-right: 6px; }
+  .row-del {
+    width: 30px; height: 30px;
+    border: none; background: transparent; border-radius: var(--radius-sm);
+    color: var(--text-faint); cursor: pointer;
+    display: inline-flex; align-items: center; justify-content: center;
+  }
+  .row-del:hover { background: var(--danger-soft); color: var(--danger); }
+  th.col-del { width: 48px; }
+
+  .add-item-row { padding: 14px 20px; border-top: 1px solid var(--border); background: #fafafa; }
+  .btn-add-item {
+    display: inline-flex; align-items: center; gap: 7px;
+    padding: 8px 14px;
+    background: #fff;
+    border: 1px dashed #c3cbd6;
+    border-radius: var(--radius-sm);
+    color: var(--accent);
+    font-size: 13px; font-weight: 600;
+    font-family: inherit; cursor: pointer;
+  }
+  .btn-add-item:hover { border-color: var(--accent); background: var(--accent-soft); }
+  .items-empty { padding: 26px; text-align: center; color: var(--text-faint); font-size: 13px; }
+
+  /* ============ PRICING SUMMARY ============ */
+  .pricing-layout {
+    display: grid;
+    grid-template-columns: 1fr 340px;
+    gap: 24px;
+    align-items: start;
+  }
+  .pricing-controls { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; }
+  .summary-box {
+    background: #fafafa;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 16px 18px;
+  }
+  .summary-line {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 7px 0;
+    font-size: 13.5px; color: var(--text-muted);
+  }
+  .summary-line .val { font-weight: 600; color: var(--text); font-variant-numeric: tabular-nums; }
+  .summary-line.total {
+    border-top: 1px solid var(--border);
+    margin-top: 8px; padding-top: 13px;
+    font-size: 15px; font-weight: 700; color: var(--text);
+  }
+  .summary-line.total .val { font-size: 17px; color: var(--accent); font-weight: 700; }
+  .discount-wrap { display: flex; align-items: center; gap: 8px; }
+  .discount-wrap input {
+    width: 90px; text-align: right;
+    padding: 6px 10px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    font-size: 13px; font-family: inherit;
+    font-variant-numeric: tabular-nums;
+  }
+  .discount-wrap input:focus { outline: 2px solid rgba(37,99,235,0.25); border-color: var(--accent); }
+  .inline-select {
+    padding: 8px 10px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    font-size: 13px; font-family: inherit;
+    background: #fff; color: var(--text);
+    width: 100%;
+  }
+  .inline-select:focus { outline: 2px solid rgba(37,99,235,0.25); border-color: var(--accent); }
+
+  /* ============ BOTTOM ACTION BAR ============ */
+  .bottom-bar {
+    position: sticky;
+    bottom: 0;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    display: flex; align-items: center; justify-content: space-between;
+    gap: 14px;
+    padding: 14px 18px;
+    margin-top: 4px;
+    box-shadow: 0 -2px 12px rgba(15,23,42,0.04);
+    flex-wrap: wrap;
+  }
+  .bottom-bar .bar-total { font-size: 13.5px; color: var(--text-muted); }
+  .bottom-bar .bar-total strong { font-size: 16px; color: var(--accent); font-variant-numeric: tabular-nums; }
+  .bar-btns { display: flex; gap: 10px; flex-wrap: wrap; }
+
+  /* Footer */
+  .footer {
+    padding: 18px 28px;
+    text-align: center;
+    color: var(--text-faint); font-size: 12.5px;
+    border-top: 1px solid var(--border);
+    background: var(--surface);
+  }
+
+  /* ============ A4 PREVIEW OVERLAY ============ */
+  .preview-overlay {
+    position: fixed; inset: 0;
+    background: rgba(15,23,42,0.45);
+    z-index: 100;
+    display: none;
+    overflow-y: auto;
+    padding: 32px 16px;
+  }
+  .preview-overlay.visible { display: block; }
+  .preview-shell { max-width: 900px; margin: 0 auto; }
+  .preview-toolbar {
+    display: flex; align-items: center; justify-content: space-between;
+    gap: 12px; margin-bottom: 16px; flex-wrap: wrap;
+  }
+  .preview-toolbar .pt-title { color: #fff; font-weight: 600; font-size: 15px; display: flex; align-items: center; gap: 9px; }
+  .preview-toolbar .pt-actions { display: flex; gap: 10px; }
+  /* ============ A4 QUOTATION DOCUMENT ============ */
+  .a4 {
+    --ink: #1f2f6b;
+    --ink-2: #3b4a82;
+    --ink-soft: #eef1fa;
+    --ink-line: #c9d0e6;
+    --paper-text: #1b2340;
+    --stamp: #5140b0;
+    background: #fff;
+    width: 100%;
+    max-width: 820px;
+    margin: 0 auto;
+    padding: 22px;
+    box-shadow: 0 12px 40px rgba(15,23,42,0.3);
+    border-radius: 3px;
+    font-family: "Hind", "Segoe UI", Arial, sans-serif;
+    font-size: 13px; line-height: 1.45; color: var(--paper-text);
+    -webkit-print-color-adjust: exact; print-color-adjust: exact;
+  }
+  .q-frame {
+    border: 2px solid var(--ink);
+    outline: 1px solid var(--ink);
+    outline-offset: 3px;
+    margin: 4px;
+  }
+
+  /* top strip */
+  .q-strip {
+    display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 12px;
+    padding: 9px 16px; border-bottom: 1px solid var(--ink-line);
+    font-size: 12px; color: var(--ink-2);
+  }
+  .q-strip b { color: var(--paper-text); font-weight: 600; }
+  .q-doc-title {
+    background: var(--ink); color: #fff;
+    font-weight: 600; font-size: 11.5px; letter-spacing: 0.12em;
+    padding: 4px 14px 3px; border-radius: 2px; white-space: nowrap;
+  }
+  .q-strip .q-mob { text-align: right; line-height: 1.5; }
+
+  /* letterhead */
+  .q-head { text-align: center; padding: 16px 20px 12px; }
+  .q-company {
+    font-family: "Zilla Slab", Rockwell, Georgia, serif;
+    font-weight: 700; font-size: 42px; line-height: 1; letter-spacing: 0.03em;
+    color: var(--ink);
+  }
+  .q-company-rule {
+    display: flex; align-items: center; gap: 10px; justify-content: center;
+    margin: 10px auto 8px; max-width: 520px;
+  }
+  .q-company-rule::before, .q-company-rule::after {
+    content: ""; flex: 1; height: 0; border-top: 3px double var(--ink);
+  }
+  .q-deals { font-size: 13px; font-weight: 600; color: var(--paper-text); padding: 0 6px; white-space: nowrap; }
+  .q-deals span { font-weight: 500; color: var(--ink-2); }
+  .q-address { font-size: 12px; color: var(--ink-2); }
+
+  /* ref / date */
+  .q-meta {
+    display: flex; justify-content: space-between; gap: 16px;
+    background: var(--ink-soft);
+    border-top: 1.5px solid var(--ink); border-bottom: 1px solid var(--ink-line);
+    padding: 7px 16px; font-size: 13px;
+  }
+  .q-meta b { font-weight: 700; color: var(--ink); font-variant-numeric: tabular-nums; }
+
+  /* to / contact */
+  .q-parties { display: grid; grid-template-columns: 1.4fr 1fr; gap: 20px; padding: 12px 16px 6px; }
+  .q-to-label { font-size: 12px; color: var(--ink-2); margin-bottom: 2px; }
+  .q-to { padding-left: 34px; }
+  .q-to .name { font-size: 16px; font-weight: 700; color: var(--paper-text); line-height: 1.3; }
+  .q-to p { font-size: 12.5px; color: #3a4260; margin-top: 1px; }
+  .q-side { font-size: 12px; color: var(--ink-2); align-self: end; }
+  .q-side div { display: flex; justify-content: flex-end; gap: 8px; line-height: 1.8; }
+  .q-side b { color: var(--paper-text); font-weight: 600; }
+
+  /* letter */
+  .q-letter { padding: 6px 16px 10px; font-size: 12.5px; color: #3a4260; }
+  .q-letter .salute { color: var(--paper-text); margin-bottom: 2px; }
+  .q-letter p { text-indent: 34px; }
+  .q-fill { display: inline-block; min-width: 70px; border-bottom: 1px dotted var(--ink-2); color: var(--paper-text); font-weight: 600; text-indent: 0; text-align: center; padding: 0 4px; }
+
+  /* items table */
+  .q-table-wrap { padding: 0 10px; }
+  .q-table { width: 100%; border-collapse: collapse; border: 1.5px solid var(--ink); }
+  .q-table th {
+    background: var(--ink); color: #fff; font-weight: 600; font-size: 12px;
+    padding: 7px 10px 6px; text-align: left; border-left: 1px solid rgba(255,255,255,0.25);
+  }
+  .q-table th:first-child { border-left: none; }
+  .q-table td {
+    padding: 8px 10px; font-size: 12.5px; vertical-align: top;
+    border-left: 1px solid var(--ink);
+  }
+  .q-table td:first-child { border-left: none; }
+  .q-table tbody tr + tr td { border-top: 1px dotted var(--ink-line); }
+  .q-table tbody tr.q-filler td { border-top: none; padding: 0; }
+  .q-table .c { text-align: center; }
+  .q-table .r { text-align: right; font-variant-numeric: tabular-nums; }
+  .q-table td.desc { font-weight: 600; }
+  .q-table tfoot td { border-top: 1px solid var(--ink); padding: 6px 10px; font-size: 12.5px; }
+  .q-table tfoot td.lbl { text-align: right; color: var(--ink-2); }
+  .q-table tfoot tr.grand td { background: var(--ink-soft); border-top: 1.5px solid var(--ink); font-size: 14px; font-weight: 700; color: var(--ink); padding: 8px 10px; }
+  .q-words { font-size: 12px; color: #3a4260; padding: 7px 12px 0; }
+  .q-words b { color: var(--paper-text); font-weight: 600; }
+
+  /* terms + signature */
+  .q-foot { display: grid; grid-template-columns: 1.35fr 1fr; gap: 20px; padding: 14px 16px 16px; align-items: end; }
+  .q-terms h4 { font-size: 13px; font-weight: 700; color: var(--ink); margin-bottom: 4px; }
+  .q-terms ol { padding-left: 18px; }
+  .q-terms li { font-size: 12px; color: #3a4260; line-height: 1.65; padding-left: 2px; }
+  .q-terms li.key { color: var(--paper-text); font-weight: 600; }
+  .q-sign { text-align: center; }
+  .q-sign .for { font-size: 12.5px; color: var(--ink-2); }
+  .q-sign .for b { color: var(--paper-text); font-weight: 600; }
+  .q-stamp-slot { height: 118px; display: flex; align-items: center; justify-content: center; }
+  .q-stamp { width: 108px; height: 108px; color: var(--stamp); transform: rotate(-11deg); opacity: 0.82; }
+  .q-sign .auth { border-top: 1px solid var(--ink-2); display: inline-block; min-width: 180px; padding-top: 5px; font-size: 12.5px; color: var(--paper-text); font-weight: 600; }
+  .q-note { text-align: center; font-size: 10.5px; color: #7a819c; padding: 7px 12px 8px; border-top: 1px solid var(--ink-line); }
+
+  @page { size: A4; margin: 8mm; }
+  @media print {
+    html, body { background: #fff !important; height: auto; overflow: visible !important; }
+    .app, .toast, .scrim, .preview-toolbar { display: none !important; }
+    .preview-overlay { display: block !important; position: static; background: none; padding: 0; overflow: visible; }
+    .preview-shell { max-width: none; }
+    .a4 { box-shadow: none; max-width: none; padding: 0; border-radius: 0; }
+  }
+
+  /* Toast */
+  .toast {
+    position: fixed; bottom: 24px; right: 24px;
+    background: #111827; color: #fff;
+    padding: 11px 18px; border-radius: var(--radius-sm);
+    font-size: 13px; font-weight: 500;
+    box-shadow: 0 8px 24px rgba(15,23,42,0.25);
+    z-index: 200;
+    display: none; align-items: center; gap: 9px;
+  }
+  .toast.visible { display: flex; }
+
+  .scrim {
+    position: fixed; inset: 0; background: rgba(15,23,42,0.35);
+    z-index: 55; display: none;
+  }
+  .scrim.visible { display: block; }
+
+  /* ============ RESPONSIVE ============ */
+  @media (max-width: 1080px) {
+    .form-grid { grid-template-columns: repeat(2, 1fr); }
+    .form-grid .span-3 { grid-column: span 2; }
+    .pricing-layout { grid-template-columns: 1fr; }
+  }
+  @media (max-width: 900px) {
+    .sidebar { transform: translateX(-100%); transition: transform 0.2s ease; }
+    .sidebar.open { transform: translateX(0); }
+    .main { margin-left: 0; }
+    .menu-btn { display: inline-flex; }
+    .topbar-search { display: none; }
+    .scrim.on { display: block; }
+  }
+  @media (max-width: 640px) {
+    .content { padding: 18px; }
+    .form-grid { grid-template-columns: 1fr; }
+    .form-grid .span-2, .form-grid .span-3 { grid-column: span 1; }
+    .pricing-controls { grid-template-columns: 1fr; }
+    .page-actions .btn { flex: 1; justify-content: center; }
+    .a4 { padding: 10px; }
+    .q-strip { grid-template-columns: 1fr; text-align: center; }
+    .q-strip .q-mob { text-align: center; }
+    .q-company { font-size: 30px; }
+    .q-deals { white-space: normal; }
+    .q-parties, .q-foot { grid-template-columns: 1fr; }
+    .q-side div { justify-content: flex-start; }
+    .q-table-wrap { overflow-x: auto; }
+    .q-table { min-width: 540px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="app">
+
+  <!-- ============ SIDEBAR ============ -->
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-logo">
+      <div class="logo-mark">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="9" y1="13" x2="15" y2="13"/><line x1="9" y1="17" x2="13" y2="17"/></svg>
+      </div>
+      <div class="logo-name">Quote<span>Flow</span></div>
+    </div>
+
+    <nav class="nav">
+      <div class="nav-label">Main</div>
+      <a class="nav-item" href="#">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="9" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="14" y="12" width="7" height="9" rx="1"/><rect x="3" y="16" width="7" height="5" rx="1"/></svg>
+        Dashboard
+      </a>
+      <a class="nav-item active" href="#">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="9" y1="13" x2="15" y2="13"/><line x1="9" y1="17" x2="13" y2="17"/></svg>
+        Quotes <span class="nav-badge">128</span>
+      </a>
+      <a class="nav-item" href="#">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/></svg>
+        Templates
+      </a>
+      <a class="nav-item" href="#">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+        Clients
+      </a>
+    </nav>
+
+    <div class="sidebar-bottom">
+      <a class="nav-item" href="#">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+        Settings
+      </a>
+      <div class="user-chip">
+        <div class="avatar">RS</div>
+        <div>
+          <div class="u-name">Rohit Sharma</div>
+          <div class="u-role">Sales Manager</div>
+        </div>
+      </div>
+    </div>
+  </aside>
+  <div class="scrim" id="scrim"></div>
+
+  <!-- ============ MAIN ============ -->
+  <div class="main">
+
+    <div class="topbar">
+      <button class="menu-btn" id="menuBtn" aria-label="Menu">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+      </button>
+      <div class="topbar-search">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        <input type="text" placeholder="Search quotes, clients...">
+      </div>
+      <div class="topbar-right">
+        <button class="icon-btn" title="Notifications">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+          <span class="dot"></span>
+        </button>
+        <button class="icon-btn" title="Help">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+        </button>
+      </div>
+    </div>
+
+    <div class="content">
+
+      <!-- Breadcrumb -->
+      <div class="breadcrumb">
+        <a href="#">Quotes</a>
+        <span class="sep">/</span>
+        <span>Create New Quote</span>
+      </div>
+
+      <!-- Page head -->
+      <div class="page-head">
+        <div>
+          <h1>Create New Quote</h1>
+          <p>Enter the quote details and add the required items.</p>
+        </div>
+        <div class="page-actions">
+          <button class="btn btn-ghost" id="cancelBtn">Cancel</button>
+          <button class="btn btn-outline" id="saveDraftTop">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+            Save Draft
+          </button>
+          <button class="btn btn-primary" id="previewTop">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+            Preview Quote
+          </button>
+        </div>
+      </div>
+
+      <!-- ============ 1. LETTERHEAD ============ -->
+      <div class="section">
+        <div class="section-head">
+          <h2><span class="step-num">1</span> Your Letterhead</h2>
+          <span class="section-hint">Printed at the top of every quote</span>
+        </div>
+        <div class="section-body">
+          <div class="form-grid">
+            <div class="field span-2">
+              <label>Business Name <span class="req">*</span></label>
+              <input type="text" id="b_name" value="Softech Computer">
+            </div>
+            <div class="field">
+              <label>Your GSTIN</label>
+              <input type="text" id="b_gstin" value="02AJKPB0803F1Z4">
+            </div>
+            <div class="field span-3">
+              <label>Deals In</label>
+              <input type="text" id="b_deals" value="Laptops, Multimedia Computers, Printers &amp; Peripherals">
+            </div>
+            <div class="field span-2">
+              <label>Business Address</label>
+              <input type="text" id="b_address" value="30/10, Post Office Road, Mandi 175001 (H.P.)">
+            </div>
+            <div class="field">
+              <label>Business Email</label>
+              <input type="email" id="b_email" value="softechmnd@gmail.com">
+            </div>
+            <div class="field">
+              <label>Mobile</label>
+              <input type="text" id="b_mob1" value="94180-80996">
+            </div>
+            <div class="field">
+              <label>Alternate / Landline</label>
+              <input type="text" id="b_mob2" value="01905-796406">
+            </div>
+            <div class="field">
+              <label>Stamp Text</label>
+              <input type="text" id="b_stamp" value="Mandi (H.P.)">
+              <label class="field-note" style="display:flex;align-items:center;gap:6px;margin-top:6px;cursor:pointer;">
+                <input type="checkbox" id="b_showStamp" checked style="width:auto;"> Show seal on quote
+              </label>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ============ 2. QUOTE INFORMATION ============ -->
+      <div class="section">
+        <div class="section-head">
+          <h2><span class="step-num">2</span> Quote Information</h2>
+          <span class="section-hint">Quote number is auto-generated</span>
+        </div>
+        <div class="section-body">
+          <div class="form-grid">
+            <div class="field">
+              <label>Quote Number</label>
+              <input type="text" id="f_qno" value="QT-2026-00129" readonly>
+            </div>
+            <div class="field">
+              <label>Quote Date <span class="req">*</span></label>
+              <input type="date" id="f_qdate" value="2026-09-24">
+            </div>
+            <div class="field">
+              <label>Valid Until <span class="req">*</span></label>
+              <input type="date" id="f_valid">
+            </div>
+            <div class="field">
+              <label>Selected Template</label>
+              <div class="template-chip">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/></svg>
+                Standard
+                <a href="#">Change</a>
+              </div>
+            </div>
+            <div class="field">
+              <label>Document Title</label>
+              <select class="inline-select" id="f_doctitle">
+                <option>QUOTATION / PROFORMA INVOICE</option>
+                <option>QUOTATION</option>
+                <option>PROFORMA INVOICE</option>
+                <option>ESTIMATE</option>
+              </select>
+            </div>
+            <div class="field">
+              <label>Client's Enquiry No.</label>
+              <input type="text" id="f_enqno" placeholder="Optional">
+            </div>
+            <div class="field">
+              <label>Enquiry Date</label>
+              <input type="date" id="f_enqdate">
+            </div>
+            <div class="field">
+              <label>Contact Number <span class="req">*</span></label>
+              <input type="text" id="f_phone" placeholder="+91 98XXXXXXXX" value="">
+            </div>
+            <div class="field">
+              <label>Email <span class="req">*</span></label>
+              <input type="email" id="f_email" placeholder="client@company.com" value="">
+            </div>
+            <div class="field span-2">
+              <label>Client / Company Name <span class="req">*</span></label>
+              <input type="text" id="f_client" placeholder="e.g. ABC Technologies Pvt. Ltd." value="IIT Mandi">
+            </div>
+            <div class="field">
+              <label>GSTIN</label>
+              <input type="text" id="f_gstin" placeholder="22AAAAA0000A1Z5" value="">
+            </div>
+            <div class="field span-3">
+              <label>Client Address <span class="req">*</span></label>
+              <textarea id="f_address" placeholder="Full billing address">Mandi, H.P.</textarea>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ============ 2. ITEMS ============ -->
+      <div class="section">
+        <div class="section-head">
+          <h2><span class="step-num">3</span> Items</h2>
+          <span class="section-hint">Amount is calculated automatically</span>
+        </div>
+        <div class="table-wrap">
+          <table class="items">
+            <thead>
+              <tr>
+                <th style="width:46px; text-align:center;">Sr.</th>
+                <th>Item Description</th>
+                <th style="text-align:right; width:120px;">Qty.</th>
+                <th style="text-align:right; width:130px;">Rate (₹)</th>
+                <th style="text-align:right; width:140px;">Amount</th>
+                <th class="col-del"></th>
+              </tr>
+            </thead>
+            <tbody id="itemsBody"></tbody>
+          </table>
+          <div class="items-empty" id="itemsEmpty" style="display:none;">No items added. Click "+ Add Item" to begin.</div>
+        </div>
+        <div class="add-item-row">
+          <button class="btn-add-item" id="addItemBtn">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            Add Item
+          </button>
+        </div>
+      </div>
+
+      <!-- ============ 3. PRICING ============ -->
+      <div class="section">
+        <div class="section-head">
+          <h2><span class="step-num">4</span> Pricing Summary</h2>
+        </div>
+        <div class="section-body">
+          <div class="pricing-layout">
+            <div class="pricing-controls">
+              <div class="field">
+                <label>GST Rate</label>
+                <select class="inline-select" id="gstSelect">
+                  <option value="0">0% (Exempt)</option>
+                  <option value="5">5%</option>
+                  <option value="12">12%</option>
+                  <option value="18" selected>18%</option>
+                  <option value="28">28%</option>
+                </select>
+              </div>
+              <div class="field">
+                <label>Discount (₹)</label>
+                <input type="number" id="discountInput" min="0" step="0.01" value="0" placeholder="0.00">
+                <div class="field-note">Flat discount on subtotal</div>
+              </div>
+            </div>
+            <div class="summary-box">
+              <div class="summary-line"><span>Subtotal</span><span class="val" id="sumSubtotal">₹0.00</span></div>
+              <div class="summary-line"><span>GST (<span id="sumGstPct">18</span>%)</span><span class="val" id="sumGst">₹0.00</span></div>
+              <div class="summary-line"><span>Discount</span><span class="val" id="sumDiscount">− ₹0.00</span></div>
+              <div class="summary-line total"><span>Grand Total</span><span class="val" id="sumGrand">₹0.00</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ============ 4. ADDITIONAL INFORMATION ============ -->
+      <div class="section">
+        <div class="section-head">
+          <h2><span class="step-num">5</span> Terms &amp; Conditions</h2>
+          <span class="section-hint">GST line is added automatically</span>
+        </div>
+        <div class="section-body">
+          <div class="form-grid">
+            <div class="field span-3">
+              <label>Terms &amp; Conditions</label>
+              <textarea id="f_terms" style="min-height:96px;">Payment within 30 days of delivery against bill.
+Goods once sold will not be taken back.</textarea>
+            </div>
+            <div class="field">
+              <label>Delivery Period</label>
+              <input type="text" id="f_delivery" placeholder="e.g. 2–3 weeks from PO" value="90 days">
+            </div>
+            <div class="field">
+              <label>Warranty</label>
+              <input type="text" id="f_warranty" placeholder="e.g. 12 months" value="One year">
+            </div>
+            <div class="field">
+              <label>Offer Validity</label>
+              <input type="text" id="f_validity" placeholder="e.g. 30 days" value="3 days from the above date">
+            </div>
+            <div class="field span-3">
+              <label>Notes</label>
+              <textarea id="f_notes" placeholder="Any additional notes for the client..." style="min-height:64px;"></textarea>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ============ BOTTOM ACTION BAR ============ -->
+      <div class="bottom-bar">
+        <div class="bar-total">Grand Total: <strong id="barGrand">₹0.00</strong></div>
+        <div class="bar-btns">
+          <button class="btn btn-ghost" id="cancelBtn2">Cancel</button>
+          <button class="btn btn-outline" id="saveDraftBtn">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+            Save Draft
+          </button>
+          <button class="btn btn-outline" id="previewBtn">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+            Preview Quote
+          </button>
+          <button class="btn btn-primary" id="generateBtn">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+            Generate Quote
+          </button>
+        </div>
+      </div>
+
+    </div>
+
+    <div class="footer">QuoteFlow © 2026</div>
+  </div>
+</div>
+
+<!-- ============ A4 PREVIEW OVERLAY ============ -->
+<div class="preview-overlay" id="previewOverlay">
+  <div class="preview-shell">
+    <div class="preview-toolbar">
+      <span class="pt-title">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+        Quote Preview — A4
+      </span>
+      <div class="pt-actions">
+        <button class="btn btn-outline" id="downloadPdfBtn">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          Download PDF
+        </button>
+        <button class="btn btn-primary" id="closePreviewBtn">Close Preview</button>
+      </div>
+    </div>
+
+    <div class="a4" id="a4doc">
+      <div class="q-frame">
+        <div class="q-strip">
+          <div>GSTIN: <b id="d_bgstin">—</b></div>
+          <div class="q-doc-title" id="d_doctitle">QUOTATION</div>
+          <div class="q-mob">Mob. <b id="d_bmob1">—</b><br><span id="d_bmob2"></span></div>
+        </div>
+
+        <div class="q-head">
+          <div class="q-company" id="d_bname">—</div>
+          <div class="q-company-rule"><div class="q-deals" id="d_bdeals_wrap">Deals in: <span id="d_bdeals"></span></div></div>
+          <div class="q-address"><span id="d_baddress"></span><span id="d_bemail_wrap"> &nbsp;|&nbsp; E-mail: <span id="d_bemail"></span></span></div>
+        </div>
+
+        <div class="q-meta">
+          <div>Ref. No. <b id="d_qno">—</b></div>
+          <div>Dated: <b id="d_qdate">—</b></div>
+        </div>
+
+        <div class="q-parties">
+          <div>
+            <div class="q-to-label">To</div>
+            <div class="q-to">
+              <div class="name" id="d_client">—</div>
+              <p id="d_address"></p>
+              <p id="d_gstin"></p>
+            </div>
+          </div>
+          <div class="q-side">
+            <div id="d_phone_row">Phone <b id="d_phone"></b></div>
+            <div id="d_email_row">Email <b id="d_email"></b></div>
+            <div>Valid until <b id="d_valid">—</b></div>
+          </div>
+        </div>
+
+        <div class="q-letter">
+          <div class="salute">Dear Sir/Madam,</div>
+          <p>While thanking you for your esteemed enquiry no. <span class="q-fill" id="d_enqno"></span> dated <span class="q-fill" id="d_enqdate"></span>, we submit our lowest rates as under for favour of acceptance, subject to the terms and conditions given below.</p>
+        </div>
+
+        <div class="q-table-wrap">
+          <table class="q-table">
+            <thead>
+              <tr>
+                <th class="c" style="width:62px; white-space:nowrap;">Sr. No.</th>
+                <th>Item Description</th>
+                <th class="c" style="width:62px;">Qty.</th>
+                <th class="r" style="width:104px;">Rate (₹)</th>
+                <th class="r" style="width:122px;">Amount (₹)</th>
+              </tr>
+            </thead>
+            <tbody id="d_items"></tbody>
+            <tfoot id="d_totals"></tfoot>
+          </table>
+        </div>
+        <div class="q-words">Amount in words: <b id="d_words">—</b></div>
+
+        <div class="q-foot">
+          <div class="q-terms">
+            <h4>Terms &amp; Conditions</h4>
+            <ol id="d_terms"></ol>
+          </div>
+          <div class="q-sign">
+            <div class="for">For: <b id="d_forname">—</b></div>
+            <div class="q-stamp-slot" id="d_stamp"></div>
+            <div class="auth">Auth. Signatory</div>
+          </div>
+        </div>
+
+        <div class="q-note">Thank you for the opportunity to quote. This is a computer-generated quotation.</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Toast -->
+<div class="toast" id="toast">
+  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+  <span id="toastMsg"></span>
+</div>
+
+<script>
+(function () {
+  'use strict';
+
+  /* ---------------- Valid Until default (+30 days) ---------------- */
+  (function () {
+    var d = new Date('2026-09-24T00:00:00');
+    d.setDate(d.getDate() + 3);
+    document.getElementById('f_valid').value = d.toISOString().slice(0, 10);
+  })();
+
+  /* ---------------- Items state ---------------- */
+  var items = [
+    { desc: '1 TB Internal SSD SATA — Western Digital / Adata', qty: 6, rate: 15900 }
+  ];
+
+  var itemsBody = document.getElementById('itemsBody');
+  var itemsEmpty = document.getElementById('itemsEmpty');
+
+  function inr(n) {
+    return '₹' + n.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  }
+
+  function calcSubtotal() {
+    return items.reduce(function (sum, it) { return sum + (it.qty * it.rate); }, 0);
+  }
+
+  function renderItems() {
+    itemsBody.innerHTML = items.map(function (it, i) {
+      var amt = it.qty * it.rate;
+      return '<tr data-idx="' + i + '">' +
+        '<td class="sr-no">' + (i + 1) + '</td>' +
+        '<td><input type="text" class="cell-input cell-desc" data-idx="' + i + '" value="' + escapeAttr(it.desc) + '" placeholder="Describe the item..."></td>' +
+        '<td><input type="number" class="cell-input cell-qty" data-idx="' + i + '" min="0" step="1" value="' + it.qty + '"></td>' +
+        '<td><input type="number" class="cell-input cell-rate" data-idx="' + i + '" min="0" step="0.01" value="' + it.rate + '"></td>' +
+        '<td class="amount-cell">' + inr(amt) + '</td>' +
+        '<td class="row-actions-cell"><button class="row-del" data-idx="' + i + '" title="Delete item">' +
+          '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>' +
+        '</button></td>' +
+      '</tr>';
+    }).join('');
+    itemsEmpty.style.display = items.length ? 'none' : 'block';
+    recalc();
+  }
+
+  function escapeAttr(s) {
+    return String(s).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
+  }
+
+  function recalc() {
+    var subtotal = calcSubtotal();
+    var gstPct = parseFloat(document.getElementById('gstSelect').value) || 0;
+    var discount = Math.max(0, parseFloat(document.getElementById('discountInput').value) || 0);
+    var taxable = Math.max(0, subtotal - discount);
+    var gst = taxable * gstPct / 100;
+    var grand = taxable + gst;
+
+    document.getElementById('sumSubtotal').textContent = inr(subtotal);
+    document.getElementById('sumGstPct').textContent = gstPct;
+    document.getElementById('sumGst').textContent = inr(gst);
+    document.getElementById('sumDiscount').textContent = '− ' + inr(discount);
+    document.getElementById('sumGrand').textContent = inr(grand);
+    document.getElementById('barGrand').textContent = inr(grand);
+    return { subtotal: subtotal, gstPct: gstPct, discount: discount, gst: gst, grand: grand };
+  }
+
+  /* Item events (delegation) */
+  itemsBody.addEventListener('input', function (e) {
+    var t = e.target;
+    var i = parseInt(t.getAttribute('data-idx'), 10);
+    if (t.classList.contains('cell-desc')) items[i].desc = t.value;
+    if (t.classList.contains('cell-qty')) items[i].qty = Math.max(0, parseFloat(t.value) || 0);
+    if (t.classList.contains('cell-rate')) items[i].rate = Math.max(0, parseFloat(t.value) || 0);
+    if (t.classList.contains('cell-qty') || t.classList.contains('cell-rate')) {
+      t.closest('tr').querySelector('.amount-cell').textContent = inr(items[i].qty * items[i].rate);
+      recalc();
+    }
+  });
+
+  itemsBody.addEventListener('click', function (e) {
+    var del = e.target.closest('.row-del');
+    if (!del) return;
+    items.splice(parseInt(del.getAttribute('data-idx'), 10), 1);
+    renderItems();
+    showToast('Item removed');
+  });
+
+  document.getElementById('addItemBtn').addEventListener('click', function () {
+    items.push({ desc: '', qty: 1, rate: 0 });
+    renderItems();
+    var rows = itemsBody.querySelectorAll('.cell-desc');
+    if (rows.length) rows[rows.length - 1].focus();
+  });
+
+  document.getElementById('gstSelect').addEventListener('change', recalc);
+  document.getElementById('discountInput').addEventListener('input', recalc);
+
+  /* ---------------- A4 Preview ---------------- */
+  var overlay = document.getElementById('previewOverlay');
+
+  function fmtDate(iso) {
+    if (!iso) return '';
+    var d = new Date(iso + 'T00:00:00');
+    return d.toLocaleDateString('en-GB'); // 07/08/2026
+  }
+
+  function val(id) { var el = document.getElementById(id); return el ? el.value.trim() : ''; }
+  function setText(id, t) { document.getElementById(id).textContent = t; }
+  function show(id, on) { document.getElementById(id).style.display = on ? '' : 'none'; }
+  function num(n) { return n.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
+  function pad2(n) { return n < 10 ? '0' + n : String(n); }
+
+  /* Indian-system amount in words (lakh / crore) */
+  var ONES = ['', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine', 'Ten', 'Eleven', 'Twelve',
+    'Thirteen', 'Fourteen', 'Fifteen', 'Sixteen', 'Seventeen', 'Eighteen', 'Nineteen'];
+  var TENS = ['', '', 'Twenty', 'Thirty', 'Forty', 'Fifty', 'Sixty', 'Seventy', 'Eighty', 'Ninety'];
+  function two(n) { return n < 20 ? ONES[n] : TENS[Math.floor(n / 10)] + (n % 10 ? ' ' + ONES[n % 10] : ''); }
+  function three(n) {
+    var h = Math.floor(n / 100), r = n % 100;
+    return (h ? ONES[h] + ' Hundred' + (r ? ' ' : '') : '') + (r ? two(r) : '');
+  }
+  function intWords(n) {
+    if (n === 0) return 'Zero';
+    var out = [];
+    var crore = Math.floor(n / 1e7); n %= 1e7;
+    var lakh = Math.floor(n / 1e5); n %= 1e5;
+    var th = Math.floor(n / 1000); n %= 1000;
+    if (crore) out.push(intWords(crore) + ' Crore');
+    if (lakh) out.push(two(lakh) + ' Lakh');
+    if (th) out.push(two(th) + ' Thousand');
+    if (n) out.push(three(n));
+    return out.join(' ');
+  }
+  function amountWords(x) {
+    var p = Math.round(x * 100), r = Math.floor(p / 100), ps = p % 100;
+    return 'Rupees ' + intWords(r) + (ps ? ' and ' + two(ps) + ' Paise' : '') + ' Only';
+  }
+
+  /* Rubber-stamp seal (SVG) */
+  function stampSvg(name, place) {
+    var ring = (name + ' \u2605 ' + place + ' \u2605 ').toUpperCase();
+    return '<svg class="q-stamp" viewBox="0 0 120 120" aria-label="Seal">' +
+      '<defs><path id="qArc" d="M60,60 m-45,0 a45,45 0 1,1 90,0 a45,45 0 1,1 -90,0"/></defs>' +
+      '<circle cx="60" cy="60" r="57" fill="none" stroke="currentColor" stroke-width="2.4"/>' +
+      '<circle cx="60" cy="60" r="53" fill="none" stroke="currentColor" stroke-width="0.8"/>' +
+      '<circle cx="60" cy="60" r="36" fill="none" stroke="currentColor" stroke-width="1.2"/>' +
+      '<text font-family="Hind, Arial, sans-serif" font-size="9.6" font-weight="700" fill="currentColor">' +
+        '<textPath href="#qArc" textLength="279" lengthAdjust="spacing">' + escapeHtml(ring) + '</textPath></text>' +
+      '<text x="60" y="56" text-anchor="middle" font-family="Hind, Arial, sans-serif" font-size="8" font-weight="700" fill="currentColor" letter-spacing="0.6">AUTHORISED</text>' +
+      '<line x1="34" y1="61" x2="86" y2="61" stroke="currentColor" stroke-width="0.8"/>' +
+      '<text x="60" y="71" text-anchor="middle" font-family="Hind, Arial, sans-serif" font-size="8" font-weight="700" fill="currentColor" letter-spacing="0.6">SIGNATORY</text>' +
+    '</svg>';
+  }
+
+  var MIN_ROWS = 8, ROW_H = 31;
+
+  function buildPreview() {
+    var c = recalc();
+
+    /* letterhead */
+    var bname = val('b_name') || 'Your Business Name';
+    setText('d_bname', bname);
+    setText('d_forname', bname);
+    setText('d_bgstin', val('b_gstin') || '—');
+    setText('d_bmob1', val('b_mob1') || '—');
+    setText('d_bmob2', val('b_mob2'));
+    setText('d_bdeals', val('b_deals'));
+    show('d_bdeals_wrap', !!val('b_deals'));
+    setText('d_baddress', val('b_address'));
+    setText('d_bemail', val('b_email'));
+    show('d_bemail_wrap', !!val('b_email'));
+    setText('d_doctitle', val('f_doctitle') || 'QUOTATION');
+    document.getElementById('d_stamp').innerHTML =
+      document.getElementById('b_showStamp').checked ? stampSvg(bname, val('b_stamp') || 'India') : '';
+
+    /* meta + client */
+    setText('d_qno', val('f_qno'));
+    setText('d_qdate', fmtDate(val('f_qdate')) || '—');
+    setText('d_valid', fmtDate(val('f_valid')) || '—');
+    setText('d_client', val('f_client') || '—');
+    document.getElementById('d_address').innerHTML = escapeHtml(val('f_address')).replace(/\n/g, '<br>');
+    setText('d_gstin', val('f_gstin') ? 'GSTIN: ' + val('f_gstin') : '');
+    setText('d_phone', val('f_phone')); show('d_phone_row', !!val('f_phone'));
+    setText('d_email', val('f_email')); show('d_email_row', !!val('f_email'));
+    setText('d_enqno', val('f_enqno'));
+    setText('d_enqdate', fmtDate(val('f_enqdate')));
+
+    /* items + ruled filler so the columns run down the page */
+    var rows = items.map(function (it, i) {
+      return '<tr>' +
+        '<td class="c">' + pad2(i + 1) + '</td>' +
+        '<td class="desc">' + escapeHtml(it.desc || '—') + '</td>' +
+        '<td class="c">' + it.qty + '</td>' +
+        '<td class="r">' + num(it.rate) + '</td>' +
+        '<td class="r">' + num(it.qty * it.rate) + '</td>' +
+      '</tr>';
+    }).join('');
+    var empty = Math.max(0, MIN_ROWS - items.length);
+    if (empty) rows += '<tr class="q-filler"><td style="height:' + (empty * ROW_H) + 'px"></td><td></td><td></td><td></td><td></td></tr>';
+    document.getElementById('d_items').innerHTML = rows;
+
+    /* totals */
+    var t = '<tr><td colspan="4" class="lbl">Sub Total</td><td class="r">' + num(c.subtotal) + '</td></tr>';
+    if (c.discount > 0) t += '<tr><td colspan="4" class="lbl">Less: Discount</td><td class="r">− ' + num(c.discount) + '</td></tr>';
+    if (c.gstPct > 0) t += '<tr><td colspan="4" class="lbl">GST @ ' + c.gstPct + '%</td><td class="r">' + num(c.gst) + '</td></tr>';
+    t += '<tr class="grand"><td colspan="4" class="lbl" style="color:inherit">Grand Total</td><td class="r">₹ ' + num(c.grand) + '</td></tr>';
+    document.getElementById('d_totals').innerHTML = t;
+    setText('d_words', amountWords(c.grand));
+
+    /* terms: key terms first (like the printed pad), then custom lines */
+    var terms = [];
+    if (c.gstPct > 0) terms.push({ t: 'GST extra @ ' + c.gstPct + '% (included in Grand Total above)', key: true });
+    if (val('f_delivery')) terms.push({ t: 'Delivery period: ' + val('f_delivery') });
+    if (val('f_warranty')) terms.push({ t: 'Warranty: ' + val('f_warranty') });
+    if (val('f_validity')) terms.push({ t: 'Validity of this offer: ' + val('f_validity') });
+    val('f_terms').split('\n').map(function (l) { return l.trim().replace(/^\d+[.)]\s*/, ''); })
+      .filter(Boolean).forEach(function (l) { terms.push({ t: l }); });
+    if (val('f_notes')) terms.push({ t: val('f_notes') });
+    document.getElementById('d_terms').innerHTML = terms.map(function (x) {
+      return '<li' + (x.key ? ' class="key"' : '') + '>' + escapeHtml(x.t) + '</li>';
+    }).join('') || '<li>—</li>';
+  }
+
+  function escapeHtml(s) {
+    return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  }
+
+  function openPreview() { buildPreview(); overlay.classList.add('visible'); document.body.style.overflow = 'hidden'; }
+  function closePreview() { overlay.classList.remove('visible'); document.body.style.overflow = ''; }
+
+  document.getElementById('previewBtn').addEventListener('click', openPreview);
+  document.getElementById('previewTop').addEventListener('click', openPreview);
+  document.getElementById('closePreviewBtn').addEventListener('click', closePreview);
+  document.getElementById('downloadPdfBtn').addEventListener('click', function () {
+    buildPreview();
+    var old = document.title;
+    document.title = val('f_qno') + ' - ' + (val('f_client') || 'Quote');
+    window.print();
+    document.title = old;
+  });
+  overlay.addEventListener('click', function (e) { if (e.target === overlay) closePreview(); });
+  document.addEventListener('keydown', function (e) { if (e.key === 'Escape') closePreview(); });
+
+  /* ---------------- Actions ---------------- */
+  function saveDraft() { showToast('Draft saved — ' + val('f_qno')); }
+  document.getElementById('saveDraftBtn').addEventListener('click', saveDraft);
+  document.getElementById('saveDraftTop').addEventListener('click', saveDraft);
+
+  document.getElementById('generateBtn').addEventListener('click', function () {
+    showToast('Quote ' + val('f_qno') + ' generated successfully');
+  });
+
+  function cancel() { showToast('Cancelled — unsaved changes discarded'); }
+  document.getElementById('cancelBtn').addEventListener('click', cancel);
+  document.getElementById('cancelBtn2').addEventListener('click', cancel);
+
+  /* Mobile sidebar */
+  var sidebar = document.getElementById('sidebar');
+  var scrim = document.getElementById('scrim');
+  document.getElementById('menuBtn').addEventListener('click', function () {
+    sidebar.classList.toggle('open'); scrim.classList.toggle('on');
+  });
+  scrim.addEventListener('click', function () {
+    sidebar.classList.remove('open'); scrim.classList.remove('on');
+  });
+
+  /* Init */
+  renderItems();
+})();
+
+/* Toast */
+var toastTimer;
+function showToast(msg) {
+  var t = document.getElementById('toast');
+  document.getElementById('toastMsg').textContent = msg;
+  t.classList.add('visible');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(function () { t.classList.remove('visible'); }, 2600);
+}
+</script>
+
+</body>
+</html>

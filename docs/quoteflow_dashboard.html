@@ -1,0 +1,932 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>QuoteFlow — Quotes</title>
+<style>
+  :root {
+    --bg: #f4f5f7;
+    --surface: #ffffff;
+    --border: #e4e7ec;
+    --text: #1f2937;
+    --text-muted: #6b7280;
+    --text-faint: #9ca3af;
+    --accent: #2563eb;
+    --accent-hover: #1d4ed8;
+    --accent-soft: #eff6ff;
+    --success: #15803d;
+    --success-soft: #f0fdf4;
+    --warning: #b45309;
+    --warning-soft: #fffbeb;
+    --info: #0369a1;
+    --info-soft: #f0f9ff;
+    --danger: #b91c1c;
+    --danger-soft: #fef2f2;
+    --neutral-soft: #f3f4f6;
+    --radius: 8px;
+    --radius-sm: 6px;
+    --font: "Segoe UI", "Inter", "Helvetica Neue", Arial, sans-serif;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { height: 100%; }
+  body {
+    font-family: var(--font);
+    background: var(--bg);
+    color: var(--text);
+    font-size: 14px;
+    line-height: 1.5;
+  }
+
+  /* ============ LAYOUT ============ */
+  .app { display: flex; min-height: 100vh; }
+
+  /* ============ SIDEBAR ============ */
+  .sidebar {
+    width: 232px;
+    background: var(--surface);
+    border-right: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    position: fixed;
+    top: 0; left: 0; bottom: 0;
+    z-index: 60;
+  }
+  .sidebar-logo {
+    display: flex; align-items: center; gap: 10px;
+    padding: 18px 20px;
+    border-bottom: 1px solid var(--border);
+  }
+  .sidebar-logo .logo-mark {
+    width: 30px; height: 30px;
+    background: var(--accent);
+    border-radius: 7px;
+    display: flex; align-items: center; justify-content: center;
+    color: #fff; flex-shrink: 0;
+  }
+  .sidebar-logo .logo-name { font-size: 16px; font-weight: 700; letter-spacing: -0.2px; }
+  .sidebar-logo .logo-name span { color: var(--accent); }
+
+  .nav { flex: 1; padding: 14px 12px; overflow-y: auto; }
+  .nav-label {
+    font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em;
+    color: var(--text-faint); padding: 8px 10px 6px;
+  }
+  .nav-item {
+    display: flex; align-items: center; gap: 10px;
+    padding: 9px 10px;
+    border-radius: var(--radius-sm);
+    color: var(--text-muted);
+    font-weight: 500;
+    cursor: pointer;
+    margin-bottom: 2px;
+    text-decoration: none;
+    transition: background 0.12s ease, color 0.12s ease;
+  }
+  .nav-item svg { flex-shrink: 0; }
+  .nav-item:hover { background: var(--neutral-soft); color: var(--text); }
+  .nav-item.active {
+    background: var(--accent-soft);
+    color: var(--accent);
+    font-weight: 600;
+  }
+  .nav-badge {
+    margin-left: auto;
+    background: var(--neutral-soft);
+    color: var(--text-muted);
+    font-size: 11px; font-weight: 600;
+    padding: 1px 7px; border-radius: 999px;
+  }
+  .nav-item.active .nav-badge { background: #dbeafe; color: var(--accent); }
+
+  .sidebar-bottom {
+    border-top: 1px solid var(--border);
+    padding: 10px 12px 14px;
+  }
+  .user-chip {
+    display: flex; align-items: center; gap: 10px;
+    padding: 8px 10px;
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+  }
+  .user-chip:hover { background: var(--neutral-soft); }
+  .avatar {
+    width: 32px; height: 32px; border-radius: 50%;
+    background: #1e40af; color: #fff;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 12px; font-weight: 600; flex-shrink: 0;
+  }
+  .user-chip .u-name { font-size: 13px; font-weight: 600; }
+  .user-chip .u-role { font-size: 11px; color: var(--text-faint); }
+
+  /* ============ MAIN ============ */
+  .main {
+    flex: 1;
+    margin-left: 232px;
+    display: flex; flex-direction: column;
+    min-width: 0;
+  }
+
+  /* Topbar */
+  .topbar {
+    height: 60px;
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; gap: 14px;
+    padding: 0 28px;
+    position: sticky; top: 0; z-index: 50;
+  }
+  .menu-btn {
+    display: none;
+    background: none; border: 1px solid var(--border); border-radius: var(--radius-sm);
+    width: 36px; height: 36px; cursor: pointer; color: var(--text-muted);
+    align-items: center; justify-content: center;
+  }
+  .topbar-search {
+    flex: 0 1 340px;
+    position: relative;
+    color: var(--text-faint);
+  }
+  .topbar-search input {
+    width: 100%;
+    padding: 8px 12px 8px 34px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    font-size: 13px; font-family: inherit;
+    background: var(--bg);
+    color: var(--text);
+  }
+  .topbar-search input:focus { outline: 2px solid rgba(37,99,235,0.25); border-color: var(--accent); background: #fff; }
+  .topbar-search svg { position: absolute; left: 11px; top: 50%; transform: translateY(-50%); }
+  .topbar-right { margin-left: auto; display: flex; align-items: center; gap: 10px; }
+  .icon-btn {
+    width: 36px; height: 36px;
+    border: 1px solid var(--border); border-radius: var(--radius-sm);
+    background: #fff; color: var(--text-muted); cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    position: relative;
+  }
+  .icon-btn:hover { background: var(--neutral-soft); color: var(--text); }
+  .icon-btn .dot {
+    position: absolute; top: 7px; right: 8px;
+    width: 7px; height: 7px; border-radius: 50%;
+    background: var(--danger); border: 1.5px solid #fff;
+  }
+
+  /* Content */
+  .content { padding: 28px; flex: 1; }
+  .page-head {
+    display: flex; align-items: flex-end; justify-content: space-between;
+    gap: 16px; margin-bottom: 22px; flex-wrap: wrap;
+  }
+  .page-head h1 { font-size: 24px; font-weight: 700; letter-spacing: -0.3px; }
+  .page-head p { color: var(--text-muted); margin-top: 3px; }
+
+  .btn {
+    display: inline-flex; align-items: center; gap: 7px;
+    padding: 9px 16px;
+    border-radius: var(--radius-sm);
+    font-size: 13px; font-weight: 600;
+    font-family: inherit; cursor: pointer;
+    border: 1px solid transparent;
+    transition: background 0.12s ease;
+    white-space: nowrap;
+  }
+  .btn-primary { background: var(--accent); color: #fff; }
+  .btn-primary:hover { background: var(--accent-hover); }
+  .btn-outline { background: #fff; border-color: var(--border); color: var(--text); }
+  .btn-outline:hover { background: var(--neutral-soft); }
+  .btn-danger { color: var(--danger); }
+  .btn-danger:hover { background: var(--danger-soft); }
+
+  /* Summary cards */
+  .stats {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 16px;
+    margin-bottom: 26px;
+  }
+  .stat-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 16px 18px;
+    display: flex; align-items: flex-start; gap: 14px;
+  }
+  .stat-icon {
+    width: 40px; height: 40px; border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+  }
+  .stat-icon.blue { background: var(--accent-soft); color: var(--accent); }
+  .stat-icon.amber { background: var(--warning-soft); color: var(--warning); }
+  .stat-icon.green { background: var(--success-soft); color: var(--success); }
+  .stat-icon.slate { background: var(--neutral-soft); color: var(--text-muted); }
+  .stat-value { font-size: 22px; font-weight: 700; letter-spacing: -0.4px; }
+  .stat-title { font-size: 13px; font-weight: 600; color: var(--text-muted); margin-top: 1px; }
+  .stat-sub { font-size: 12px; color: var(--text-faint); }
+
+  /* Panel */
+  .panel {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    overflow: visible;
+  }
+  .panel-head {
+    display: flex; align-items: center; justify-content: space-between;
+    gap: 14px; padding: 16px 18px;
+    border-bottom: 1px solid var(--border);
+    flex-wrap: wrap;
+  }
+  .panel-head h2 { font-size: 16px; font-weight: 700; }
+  .panel-tools { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .search-box { position: relative; color: var(--text-faint); }
+  .search-box input {
+    width: 240px;
+    padding: 8px 12px 8px 32px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    font-size: 13px; font-family: inherit;
+    background: #fff; color: var(--text);
+  }
+  .search-box input:focus { outline: 2px solid rgba(37,99,235,0.25); border-color: var(--accent); }
+  .search-box svg { position: absolute; left: 10px; top: 50%; transform: translateY(-50%); }
+  .select, .filter-btn {
+    padding: 8px 12px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    font-size: 13px; font-family: inherit;
+    background: #fff; color: var(--text);
+    cursor: pointer;
+  }
+  .filter-btn { display: inline-flex; align-items: center; gap: 7px; font-weight: 500; }
+  .filter-btn:hover, .select:hover { background: var(--neutral-soft); }
+  .select:focus { outline: 2px solid rgba(37,99,235,0.25); border-color: var(--accent); }
+
+  /* Table */
+  .table-wrap { overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; min-width: 760px; }
+  thead th {
+    text-align: left;
+    font-size: 11px; font-weight: 600;
+    text-transform: uppercase; letter-spacing: 0.05em;
+    color: var(--text-faint);
+    padding: 11px 18px;
+    background: #fafafa;
+    border-bottom: 1px solid var(--border);
+    white-space: nowrap;
+  }
+  tbody td {
+    padding: 13px 18px;
+    border-bottom: 1px solid var(--border);
+    font-size: 13.5px;
+    vertical-align: middle;
+  }
+  tbody tr:last-child td { border-bottom: none; }
+  tbody tr:hover { background: #fafbfd; }
+  .qno { font-weight: 600; color: var(--accent); font-size: 13px; white-space: nowrap; }
+  .client-name { font-weight: 600; }
+  .client-sub { font-size: 12px; color: var(--text-faint); }
+  .num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  th.num { text-align: right; }
+  .amount { font-weight: 600; }
+  .muted { color: var(--text-faint); font-size: 12.5px; white-space: nowrap; }
+
+  .badge {
+    display: inline-flex; align-items: center; gap: 6px;
+    font-size: 12px; font-weight: 600;
+    padding: 3px 10px;
+    border-radius: 999px;
+    white-space: nowrap;
+  }
+  .badge::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+  .badge.draft { background: var(--neutral-soft); color: var(--text-muted); }
+  .badge.sent { background: var(--info-soft); color: var(--info); }
+  .badge.approved { background: var(--success-soft); color: var(--success); }
+  .badge.expired { background: var(--danger-soft); color: var(--danger); }
+
+  /* Row actions dropdown */
+  .row-actions { position: relative; text-align: right; }
+  .kebab {
+    width: 30px; height: 30px;
+    border: none; background: transparent; border-radius: var(--radius-sm);
+    color: var(--text-faint); cursor: pointer;
+    display: inline-flex; align-items: center; justify-content: center;
+  }
+  .kebab:hover { background: var(--neutral-soft); color: var(--text); }
+  .dropdown {
+    position: absolute; right: 0; top: calc(100% + 4px);
+    background: #fff;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    box-shadow: 0 8px 24px rgba(15,23,42,0.10);
+    min-width: 170px;
+    z-index: 40;
+    display: none;
+    overflow: hidden;
+  }
+  .dropdown.open { display: block; }
+  .dropdown button {
+    display: flex; align-items: center; gap: 9px;
+    width: 100%; text-align: left;
+    padding: 9px 14px;
+    border: none; background: none;
+    font-size: 13px; font-family: inherit; color: var(--text);
+    cursor: pointer;
+  }
+  .dropdown button:hover { background: var(--neutral-soft); }
+  .dropdown .dd-danger { color: var(--danger); }
+  .dropdown .dd-danger:hover { background: var(--danger-soft); }
+  .dropdown .dd-sep { border-top: 1px solid var(--border); margin: 4px 0; }
+
+  /* Empty state */
+  .empty-state {
+    display: none;
+    flex-direction: column; align-items: center; justify-content: center;
+    text-align: center;
+    padding: 60px 20px;
+  }
+  .empty-state.visible { display: flex; }
+  .empty-icon {
+    width: 64px; height: 64px; border-radius: 14px;
+    background: var(--accent-soft); color: var(--accent);
+    display: flex; align-items: center; justify-content: center;
+    margin-bottom: 16px;
+  }
+  .empty-state h3 { font-size: 16px; font-weight: 700; margin-bottom: 4px; }
+  .empty-state p { color: var(--text-muted); margin-bottom: 18px; }
+
+  /* Pagination */
+  .pagination {
+    display: flex; align-items: center; justify-content: space-between;
+    gap: 12px; padding: 14px 18px;
+    border-top: 1px solid var(--border);
+    flex-wrap: wrap;
+  }
+  .page-info { font-size: 12.5px; color: var(--text-faint); }
+  .page-buttons { display: flex; gap: 6px; }
+  .page-btn {
+    min-width: 32px; height: 32px;
+    padding: 0 10px;
+    border: 1px solid var(--border);
+    background: #fff; color: var(--text-muted);
+    border-radius: var(--radius-sm);
+    font-size: 13px; font-family: inherit; font-weight: 500;
+    cursor: pointer;
+  }
+  .page-btn:hover:not(:disabled) { background: var(--neutral-soft); color: var(--text); }
+  .page-btn.active { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 600; }
+  .page-btn:disabled { opacity: 0.45; cursor: default; }
+
+  /* Footer */
+  .footer {
+    padding: 18px 28px;
+    text-align: center;
+    color: var(--text-faint); font-size: 12.5px;
+    border-top: 1px solid var(--border);
+    background: var(--surface);
+  }
+
+  /* Overlay page (template selection transition) */
+  .overlay-page {
+    position: fixed; inset: 0;
+    background: var(--bg);
+    z-index: 100;
+    display: none;
+    overflow-y: auto;
+  }
+  .overlay-page.visible { display: block; }
+  .overlay-inner { max-width: 860px; margin: 0 auto; padding: 48px 24px 80px; }
+  .overlay-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 32px; }
+  .back-btn {
+    display: inline-flex; align-items: center; gap: 7px;
+    background: none; border: none; color: var(--text-muted);
+    font-size: 13.5px; font-weight: 600; font-family: inherit; cursor: pointer;
+  }
+  .back-btn:hover { color: var(--text); }
+  .overlay-inner h1 { font-size: 24px; font-weight: 700; letter-spacing: -0.3px; margin-bottom: 6px; }
+  .overlay-inner > p { color: var(--text-muted); margin-bottom: 30px; }
+  .tpl-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; }
+  .tpl-card {
+    background: #fff; border: 1px solid var(--border); border-radius: var(--radius);
+    padding: 22px; cursor: pointer; transition: border-color 0.12s ease;
+  }
+  .tpl-card:hover { border-color: var(--accent); }
+  .tpl-thumb {
+    height: 120px; border-radius: var(--radius-sm);
+    background: var(--bg); border: 1px solid var(--border);
+    margin-bottom: 14px; padding: 12px;
+    display: flex; flex-direction: column; gap: 6px;
+  }
+  .tpl-thumb .bar { height: 7px; border-radius: 3px; background: #d7dbe2; }
+  .tpl-thumb .bar.hl { background: var(--accent); opacity: 0.7; }
+  .tpl-name { font-weight: 700; font-size: 14px; }
+  .tpl-desc { font-size: 12.5px; color: var(--text-muted); margin-top: 2px; }
+
+  /* Toast */
+  .toast {
+    position: fixed; bottom: 24px; right: 24px;
+    background: #111827; color: #fff;
+    padding: 11px 18px; border-radius: var(--radius-sm);
+    font-size: 13px; font-weight: 500;
+    box-shadow: 0 8px 24px rgba(15,23,42,0.25);
+    z-index: 200;
+    display: none; align-items: center; gap: 9px;
+  }
+  .toast.visible { display: flex; }
+
+  /* ============ RESPONSIVE ============ */
+  @media (max-width: 1080px) {
+    .stats { grid-template-columns: repeat(2, 1fr); }
+    .tpl-grid { grid-template-columns: repeat(2, 1fr); }
+  }
+  @media (max-width: 900px) {
+    .sidebar { transform: translateX(-100%); transition: transform 0.2s ease; }
+    .sidebar.open { transform: translateX(0); }
+    .main { margin-left: 0; }
+    .menu-btn { display: inline-flex; }
+    .topbar-search { display: none; }
+    .scrim {
+      position: fixed; inset: 0; background: rgba(15,23,42,0.35);
+      z-index: 55; display: none;
+    }
+    .scrim.visible { display: block; }
+  }
+  @media (max-width: 640px) {
+    .content { padding: 18px; }
+    .stats { grid-template-columns: 1fr; }
+    .search-box input { width: 100%; }
+    .panel-tools { width: 100%; }
+    .search-box { flex: 1; }
+    .tpl-grid { grid-template-columns: 1fr; }
+    .page-head .btn { width: 100%; justify-content: center; }
+  }
+</style>
+</head>
+<body>
+
+<div class="app">
+
+  <!-- ============ SIDEBAR ============ -->
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-logo">
+      <div class="logo-mark">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="9" y1="13" x2="15" y2="13"/><line x1="9" y1="17" x2="13" y2="17"/></svg>
+      </div>
+      <div class="logo-name">Quote<span>Flow</span></div>
+    </div>
+
+    <nav class="nav">
+      <div class="nav-label">Main</div>
+      <a class="nav-item" href="#">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="9" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="14" y="12" width="7" height="9" rx="1"/><rect x="3" y="16" width="7" height="5" rx="1"/></svg>
+        Dashboard
+      </a>
+      <a class="nav-item active" href="#">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="9" y1="13" x2="15" y2="13"/><line x1="9" y1="17" x2="13" y2="17"/></svg>
+        Quotes <span class="nav-badge">128</span>
+      </a>
+      <a class="nav-item" href="#">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/></svg>
+        Templates
+      </a>
+      <a class="nav-item" href="#">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+        Clients
+      </a>
+    </nav>
+
+    <div class="sidebar-bottom">
+      <a class="nav-item" href="#">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+        Settings
+      </a>
+      <div class="user-chip">
+        <div class="avatar">RS</div>
+        <div>
+          <div class="u-name">Rohit Sharma</div>
+          <div class="u-role">Sales Manager</div>
+        </div>
+      </div>
+    </div>
+  </aside>
+  <div class="scrim" id="scrim"></div>
+
+  <!-- ============ MAIN ============ -->
+  <div class="main">
+
+    <div class="topbar">
+      <button class="menu-btn" id="menuBtn" aria-label="Menu">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+      </button>
+      <div class="topbar-search">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        <input type="text" placeholder="Search quotes, clients...">
+      </div>
+      <div class="topbar-right">
+        <button class="icon-btn" title="Notifications">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+          <span class="dot"></span>
+        </button>
+        <button class="icon-btn" title="Help">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+        </button>
+      </div>
+    </div>
+
+    <div class="content">
+      <!-- Page head -->
+      <div class="page-head">
+        <div>
+          <h1>Quotes</h1>
+          <p>Create, manage and track your quotations.</p>
+        </div>
+        <button class="btn btn-primary" id="createQuoteBtn">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          Create New Quote
+        </button>
+      </div>
+
+      <!-- Summary cards -->
+      <div class="stats">
+        <div class="stat-card">
+          <div class="stat-icon blue">
+            <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+          </div>
+          <div>
+            <div class="stat-value">128</div>
+            <div class="stat-title">Total Quotes</div>
+            <div class="stat-sub">All time</div>
+          </div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon amber">
+            <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4z"/></svg>
+          </div>
+          <div>
+            <div class="stat-value">12</div>
+            <div class="stat-title">Drafts</div>
+            <div class="stat-sub">Needs attention</div>
+          </div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon green">
+            <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+          </div>
+          <div>
+            <div class="stat-value">84</div>
+            <div class="stat-title">Sent</div>
+            <div class="stat-sub">Active quotes</div>
+          </div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon slate">
+            <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+          </div>
+          <div>
+            <div class="stat-value">₹18,42,500</div>
+            <div class="stat-title">Total Value</div>
+            <div class="stat-sub">This month</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Quote management panel -->
+      <div class="panel">
+        <div class="panel-head">
+          <h2>Recent Quotes</h2>
+          <div class="panel-tools">
+            <div class="search-box">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+              <input type="text" id="searchInput" placeholder="Search quotes...">
+            </div>
+            <select class="select" id="statusFilter">
+              <option value="all">All Statuses</option>
+              <option value="draft">Draft</option>
+              <option value="sent">Sent</option>
+              <option value="approved">Approved</option>
+              <option value="expired">Expired</option>
+            </select>
+            <select class="select" id="dateFilter">
+              <option value="all">All Time</option>
+              <option value="today">Today</option>
+              <option value="week">Last 7 days</option>
+              <option value="month">This month</option>
+              <option value="quarter">Last 3 months</option>
+            </select>
+            <button class="filter-btn" id="resetFilters">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg>
+              Reset
+            </button>
+          </div>
+        </div>
+
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Quote No.</th>
+                <th>Client</th>
+                <th>Date</th>
+                <th class="num">Items</th>
+                <th class="num">Amount</th>
+                <th>Status</th>
+                <th style="text-align:right;">Actions</th>
+              </tr>
+            </thead>
+            <tbody id="quoteTableBody"><!-- rows rendered by JS --></tbody>
+          </table>
+
+          <!-- Empty state (hidden by default) -->
+          <div class="empty-state" id="emptyState">
+            <div class="empty-icon">
+              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><polyline points="13 2 13 9 20 9"/><path d="M9 15l2 2 4-4"/></svg>
+            </div>
+            <h3>No quotes found</h3>
+            <p>Create your first quotation to get started.</p>
+            <button class="btn btn-primary" id="emptyCreateBtn">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+              Create New Quote
+            </button>
+          </div>
+        </div>
+
+        <div class="pagination">
+          <span class="page-info" id="pageInfo">Showing 5 of 128 quotes</span>
+          <div class="page-buttons" id="paginationButtons">
+            <button class="page-btn" data-page="prev">Previous</button>
+            <button class="page-btn active" data-page="1">1</button>
+            <button class="page-btn" data-page="2">2</button>
+            <button class="page-btn" data-page="3">3</button>
+            <button class="page-btn" data-page="4">4</button>
+            <button class="page-btn" data-page="5">5</button>
+            <button class="page-btn" data-page="next">Next</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="footer">QuoteFlow © 2026</div>
+  </div>
+</div>
+
+<!-- ============ TEMPLATE SELECTION (transition target for Create New Quote) ============ -->
+<div class="overlay-page" id="templatePage">
+  <div class="overlay-inner">
+    <div class="overlay-top">
+      <button class="back-btn" id="backToQuotes">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
+        Back to Quotes
+      </button>
+      <span class="muted">Step 1 of 3 — Template Selection</span>
+    </div>
+    <h1>Choose a Quote Template</h1>
+    <p>Select a template format to start building your quotation. (Placeholder — Page 2)</p>
+    <div class="tpl-grid">
+      <div class="tpl-card" onclick="showToast('Standard template selected')">
+        <div class="tpl-thumb">
+          <div class="bar hl" style="width:55%"></div>
+          <div class="bar" style="width:80%"></div>
+          <div class="bar" style="width:70%"></div>
+          <div class="bar" style="width:40%"></div>
+        </div>
+        <div class="tpl-name">Standard</div>
+        <div class="tpl-desc">Classic quotation layout with GST summary.</div>
+      </div>
+      <div class="tpl-card" onclick="showToast('Modern template selected')">
+        <div class="tpl-thumb">
+          <div class="bar" style="width:40%"></div>
+          <div class="bar hl" style="width:85%"></div>
+          <div class="bar" style="width:60%"></div>
+          <div class="bar" style="width:75%"></div>
+        </div>
+        <div class="tpl-name">Modern</div>
+        <div class="tpl-desc">Clean minimal design for service quotes.</div>
+      </div>
+      <div class="tpl-card" onclick="showToast('Detailed template selected')">
+        <div class="tpl-thumb">
+          <div class="bar" style="width:70%"></div>
+          <div class="bar" style="width:50%"></div>
+          <div class="bar hl" style="width:90%"></div>
+          <div class="bar" style="width:65%"></div>
+        </div>
+        <div class="tpl-name">Detailed</div>
+        <div class="tpl-desc">Full proforma invoice with terms section.</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Toast -->
+<div class="toast" id="toast">
+  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+  <span id="toastMsg"></span>
+</div>
+
+<script>
+(function () {
+  'use strict';
+
+  /* ---------------- Data ---------------- */
+  var quotes = [
+    { id: 1, qno: 'QT-2026-00128', client: 'ABC Technologies Pvt. Ltd.', sub: 'Delhi', date: '2026-09-23', items: 6, amount: '₹1,25,000', status: 'sent' },
+    { id: 2, qno: 'QT-2026-00127', client: 'Sharma Enterprises', sub: 'Jaipur', date: '2026-09-22', items: 3, amount: '₹48,500', status: 'draft' },
+    { id: 3, qno: 'QT-2026-00126', client: 'Himalayan Computers', sub: 'Dehradun', date: '2026-09-21', items: 8, amount: '₹2,18,000', status: 'approved' },
+    { id: 4, qno: 'QT-2026-00125', client: 'XYZ Solutions', sub: 'Noida', date: '2026-09-20', items: 4, amount: '₹76,800', status: 'sent' },
+    { id: 5, qno: 'QT-2026-00124', client: 'Mountain IT Services', sub: 'Shimla', date: '2026-09-18', items: 2, amount: '₹35,000', status: 'expired' },
+    { id: 6, qno: 'QT-2026-00123', client: 'Delta Marketing Co.', sub: 'Mumbai', date: '2026-09-15', items: 5, amount: '₹92,400', status: 'sent' },
+    { id: 7, qno: 'QT-2026-00122', client: 'Prakash Traders', sub: 'Lucknow', date: '2026-08-28', items: 12, amount: '₹3,10,750', status: 'draft' },
+    { id: 8, qno: 'QT-2026-00121', client: 'Nimbus Softwares', sub: 'Pune', date: '2026-07-30', items: 4, amount: '₹64,000', status: 'approved' },
+    { id: 9, qno: 'QT-2026-00120', client: 'Sunrise Electronics', sub: 'Indore', date: '2026-06-12', items: 9, amount: '₹1,86,200', status: 'expired' }
+  ];
+
+  var state = { search: '', status: 'all', date: 'all', page: 1 };
+  var PER_PAGE = 5;
+
+  var els = {
+    tbody: document.getElementById('quoteTableBody'),
+    empty: document.getElementById('emptyState'),
+    search: document.getElementById('searchInput'),
+    status: document.getElementById('statusFilter'),
+    date: document.getElementById('dateFilter'),
+    reset: document.getElementById('resetFilters'),
+    pageInfo: document.getElementById('pageInfo'),
+    pageButtons: document.getElementById('paginationButtons'),
+    templatePage: document.getElementById('templatePage'),
+    createBtn: document.getElementById('createQuoteBtn'),
+    emptyCreateBtn: document.getElementById('emptyCreateBtn'),
+    backBtn: document.getElementById('backToQuotes')
+  };
+
+  /* ---------------- Helpers ---------------- */
+  function fmtDate(iso) {
+    var d = new Date(iso + 'T00:00:00');
+    return d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+  }
+
+  function inDateRange(iso, range) {
+    if (range === 'all') return true;
+    var d = new Date(iso + 'T00:00:00');
+    var now = new Date('2026-09-24T00:00:00');
+    var diff = (now - d) / 86400000;
+    if (range === 'today') return diff < 1;
+    if (range === 'week') return diff < 7;
+    if (range === 'month') return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
+    if (range === 'quarter') return diff <= 92;
+    return true;
+  }
+
+  function filtered() {
+    return quotes.filter(function (q) {
+      var s = state.search.toLowerCase();
+      var matchSearch = !s || q.qno.toLowerCase().indexOf(s) !== -1 || q.client.toLowerCase().indexOf(s) !== -1;
+      var matchStatus = state.status === 'all' || q.status === state.status;
+      var matchDate = inDateRange(q.date, state.date);
+      return matchSearch && matchStatus && matchDate;
+    });
+  }
+
+  /* ---------------- Render ---------------- */
+  function render() {
+    var data = filtered();
+    var total = data.length;
+    var pages = Math.max(1, Math.ceil(total / PER_PAGE));
+    if (state.page > pages) state.page = pages;
+    var start = (state.page - 1) * PER_PAGE;
+    var rows = data.slice(start, start + PER_PAGE);
+
+    els.tbody.innerHTML = rows.map(function (q) {
+      return '<tr>' +
+        '<td><span class="qno">' + q.qno + '</span></td>' +
+        '<td><div class="client-name">' + q.client + '</div><div class="client-sub">' + q.sub + '</div></td>' +
+        '<td class="muted">' + fmtDate(q.date) + '</td>' +
+        '<td class="num muted">' + q.items + ' items</td>' +
+        '<td class="num amount">' + q.amount + '</td>' +
+        '<td><span class="badge ' + q.status + '">' + q.status.charAt(0).toUpperCase() + q.status.slice(1) + '</span></td>' +
+        '<td class="row-actions">' +
+          '<button class="kebab" data-id="' + q.id + '" aria-label="Actions">' +
+            '<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="5" r="1.7"/><circle cx="12" cy="12" r="1.7"/><circle cx="12" cy="19" r="1.7"/></svg>' +
+          '</button>' +
+          '<div class="dropdown" id="dd-' + q.id + '">' +
+            '<button data-act="view" data-id="' + q.id + '"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>View Quote</button>' +
+            '<button data-act="edit" data-id="' + q.id + '"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4z"/></svg>Edit Quote</button>' +
+            '<button data-act="pdf" data-id="' + q.id + '"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>Download PDF</button>' +
+            '<button data-act="dup" data-id="' + q.id + '"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>Duplicate</button>' +
+            '<div class="dd-sep"></div>' +
+            '<button class="dd-danger" data-act="del" data-id="' + q.id + '"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>Delete</button>' +
+          '</div>' +
+        '</td>' +
+      '</tr>';
+    }).join('');
+
+    if (total === 0) {
+      els.empty.classList.add('visible');
+      els.pageInfo.textContent = 'Showing 0 of 0 quotes';
+      els.pageButtons.style.display = 'none';
+    } else {
+      els.empty.classList.remove('visible');
+      els.pageInfo.textContent = 'Showing ' + rows.length + ' of ' + total + ' quotes';
+      els.pageButtons.style.display = 'flex';
+    }
+
+    // Pagination highlight
+    var btns = els.pageButtons.querySelectorAll('.page-btn');
+    btns.forEach(function (b) {
+      var p = b.getAttribute('data-page');
+      b.classList.toggle('active', String(p) === String(state.page));
+      b.disabled = (p === 'prev' && state.page === 1) || (p === 'next' && state.page === pages);
+    });
+  }
+
+  /* ---------------- Events ---------------- */
+  els.search.addEventListener('input', function (e) {
+    state.search = e.target.value; state.page = 1; render();
+  });
+  els.status.addEventListener('change', function (e) {
+    state.status = e.target.value; state.page = 1; render();
+  });
+  els.date.addEventListener('change', function (e) {
+    state.date = e.target.value; state.page = 1; render();
+  });
+  els.reset.addEventListener('click', function () {
+    state.search = ''; state.status = 'all'; state.date = 'all'; state.page = 1;
+    els.search.value = ''; els.status.value = 'all'; els.date.value = 'all';
+    render(); showToast('Filters reset');
+  });
+
+  els.pageButtons.addEventListener('click', function (e) {
+    var btn = e.target.closest('.page-btn');
+    if (!btn || btn.disabled) return;
+    var p = btn.getAttribute('data-page');
+    var pages = Math.max(1, Math.ceil(filtered().length / PER_PAGE));
+    if (p === 'prev') state.page = Math.max(1, state.page - 1);
+    else if (p === 'next') state.page = Math.min(pages, state.page + 1);
+    else state.page = parseInt(p, 10);
+    render();
+  });
+
+  // Kebab dropdowns (delegation, close on outside click)
+  document.addEventListener('click', function (e) {
+    var kebab = e.target.closest('.kebab');
+    if (kebab) {
+      var dd = document.getElementById('dd-' + kebab.getAttribute('data-id'));
+      var wasOpen = dd.classList.contains('open');
+      document.querySelectorAll('.dropdown.open').forEach(function (d) { d.classList.remove('open'); });
+      if (!wasOpen) dd.classList.add('open');
+      return;
+    }
+    var act = e.target.closest('.dropdown button');
+    if (act) {
+      var id = parseInt(act.getAttribute('data-id'), 10);
+      var action = act.getAttribute('data-act');
+      var q = quotes.filter(function (x) { return x.id === id; })[0];
+      if (action === 'view') showToast('Opening ' + q.qno + ' (Page 5 Preview)');
+      if (action === 'edit') showToast('Opening quote builder for ' + q.qno + ' (Page 4)');
+      if (action === 'pdf') showToast('Downloading PDF for ' + q.qno);
+      if (action === 'dup') { showToast(q.qno + ' duplicated'); }
+      if (action === 'del') {
+        quotes = quotes.filter(function (x) { return x.id !== id; });
+        showToast(q.qno + ' deleted');
+        render();
+      }
+      document.querySelectorAll('.dropdown.open').forEach(function (d) { d.classList.remove('open'); });
+      return;
+    }
+    if (!e.target.closest('.dropdown')) {
+      document.querySelectorAll('.dropdown.open').forEach(function (d) { d.classList.remove('open'); });
+    }
+  });
+
+  // Create New Quote → Template Selection transition
+  function openTemplatePage() { els.templatePage.classList.add('visible'); }
+  els.createBtn.addEventListener('click', openTemplatePage);
+  els.emptyCreateBtn.addEventListener('click', openTemplatePage);
+  els.backBtn.addEventListener('click', function () { els.templatePage.classList.remove('visible'); });
+
+  // Mobile sidebar
+  var sidebar = document.getElementById('sidebar');
+  var scrim = document.getElementById('scrim');
+  document.getElementById('menuBtn').addEventListener('click', function () {
+    sidebar.classList.toggle('open'); scrim.classList.toggle('visible');
+  });
+  scrim.addEventListener('click', function () {
+    sidebar.classList.remove('open'); scrim.classList.remove('visible');
+  });
+
+  render();
+})();
+
+/* Toast */
+var toastTimer;
+function showToast(msg) {
+  var t = document.getElementById('toast');
+  document.getElementById('toastMsg').textContent = msg;
+  t.classList.add('visible');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(function () { t.classList.remove('visible'); }, 2600);
+}
+</script>
+
+</body>
+</html>
