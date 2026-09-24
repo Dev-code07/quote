@@ -31,15 +31,14 @@
 
             {{-- Sidebar: 232px fixed on desktop, off-canvas drawer below 900px (design.md 2.1) --}}
             <aside
-                x-show="open"
                 x-transition:enter="transition ease-out duration-200"
                 x-transition:enter-start="-translate-x-full"
                 x-transition:enter-end="translate-x-0"
                 x-transition:leave="transition ease-in duration-150"
                 x-transition:leave-start="translate-x-0"
                 x-transition:leave-end="-translate-x-full"
-                class="fixed inset-y-0 left-0 z-50 flex w-[232px] -translate-x-full flex-col border-r border-app-border bg-app-surface transition-transform md:!translate-x-0 max-[900px]:!translate-x-0"
-                :class="open ? 'max-[900px]:translate-x-0' : 'max-[900px]:-translate-x-full'"
+                class="fixed inset-y-0 left-0 z-50 flex w-[232px] flex-col border-r border-app-border bg-app-surface shadow-app-card transition-transform duration-200 min-[901px]:shadow-none"
+                :class="open ? 'translate-x-0' : '-translate-x-full min-[901px]:translate-x-0'"
                 :aria-hidden="open ? null : (window.matchMedia('(min-width: 901px)').matches ? null : 'true')"
             >
                 <div class="flex h-16 items-center gap-2.5 border-b border-app-border px-5">
@@ -90,7 +89,7 @@
             </aside>
 
             {{-- Main column --}}
-            <div class="min-h-screen md:pl-[232px] max-[900px]:pl-0">
+            <div class="min-h-screen min-[901px]:pl-[232px]">
                 <header class="sticky top-0 z-30 flex h-16 items-center gap-3 border-b border-app-border bg-app-surface px-5">
                     <button
                         type="button"
