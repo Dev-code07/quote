@@ -46,8 +46,34 @@
             box-shadow: none;
             margin: 0 auto;
             min-height: 0;
+            line-height: 12.2pt;
         }
         .q-frame { margin: 4px; }
+
+        /* Dompdf applies table-cell width as a CONTENT width and then adds
+           horizontal padding. The shared stylesheet intentionally declares
+           border-box column widths for the browser, so applying those values
+           directly in Dompdf makes the table wider than the frame. Subtract the
+           20px cell padding from each PDF column width; the resulting rendered
+           widths sum to the shared 177.6mm table width and keep the Amount
+           column inside the A4 page. */
+        .q-table th.w-sr,
+        .q-table td.w-sr { width: 8.9mm !important; }
+        .q-table th.w-desc,
+        .q-table td.w-desc { width: 74.6mm !important; }
+        .q-table th.w-qty,
+        .q-table td.w-qty { width: 8.9mm !important; }
+        .q-table th.w-rate,
+        .q-table td.w-rate { width: 24.9mm !important; }
+        .q-table th.w-amt,
+        .q-table td.w-amt { width: 33.8mm !important; }
+
+        /* The "Page N" caption is a screen affordance. It is hidden here rather
+           than in @media print because Dompdf does not evaluate media queries
+           at all -- it honours @page and nothing else. Left in, this ~5mm
+           caption pushed the 297mm sheet past the page and Dompdf split it,
+           emitting up to two BLANK pages ahead of the real content. */
+        .page-label { display: none; }
 
         tr { page-break-inside: avoid; }
     </style>

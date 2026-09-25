@@ -7,7 +7,7 @@ use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
 
 /**
- * Logo and signature file handling (PRD FR-13, rules.md section 9).
+ * Logo, signature and company stamp file handling (PRD FR-13, rules.md section 9).
  *
  * Validation of MIME type, extension and size happens in the FormRequest; this
  * service is only responsible for storing under a generated name and deleting.

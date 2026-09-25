@@ -70,7 +70,15 @@
     width: 210mm;
     min-height: 297mm;
     margin: 0 auto;
-    padding: 9mm;
+    /* 7mm, not 9mm. The sheet carries the document's fixed overhead -- letter
+       head, client block, terms, signature -- and that block is TALLER in
+       Dompdf than in the browser (Dompdf reserves a full font line box per
+       element, the browser does not). At 9mm the two-page-per-A4 arithmetic
+       left no slack, so a two-item quotation whose content measured 299mm
+       against a 272mm frame was split and produced two BLANK pages. The 2mm
+       a side buys 4mm of frame and keeps both engines identical, since this
+       is the shared stylesheet. */
+    padding: 7mm;
     background: #fff;
     box-shadow: 0 1px 2px rgb(15 23 42 / 0.08), 0 12px 32px rgb(15 23 42 / 0.16);
     font-family: 'Hind', 'Segoe UI', Arial, sans-serif;
@@ -93,16 +101,39 @@
        genuine table. A styled <div> silently falls back to block formatting
        and the bands drift down the page. */
     width: 184mm;
-    /* 297mm sheet - 2x9mm sheet padding - 2x4px frame margin - 2x2px border.
-       A real height, not min-height: the footer must sit at the foot of the
-       frame so the preview and the PDF agree page-for-page. */
-    height: 275.6mm;
+    /* EXACT page arithmetic, because Dompdf page-breaks on overflow alone.
+         sheet padding        7mm x2                     = 14mm
+         frame margin         4px x2 = 8px = 6.35mm
+         available for frame  297 - 14 - 6.35            = 276.65mm
+       The frame is `box-sizing: border-box` (set on .q-sheet *), so its 2px
+       border is INSIDE that height and must not be subtracted again. An
+       earlier version did subtract it, giving 269.475mm and throwing away
+       usable page for no reason.
+
+       The value has to be exact. `height` on a table is only a MINIMUM: when
+       the content is taller, the table grows and the sheet spills past the
+       297mm page, which Dompdf resolves by splitting -- producing the blank
+       pages and half-empty first pages this was meant to prevent. */
+    height: 276.65mm;
     border: 2px solid var(--ink);
     border-collapse: separate;
     border-spacing: 0;
-    outline: 1px solid var(--ink);
-    outline-offset: 3px;
     margin: 4px;
+}
+
+/* The reference frame is a double rule: a 2px border plus a hairline outline
+   3px outside it. `outline` is exactly right for that -- it paints outside the
+   box without adding a single pixel of layout, which matters here because the
+   page arithmetic above has no slack at all.
+
+   Dompdf does not implement `outline`, so this is scoped to the screen: in the
+   PDF the frame shows its 2px border alone. Reintroducing the second rule as a
+   border or box-shadow would break the exact 297mm total. */
+@media screen {
+    .q-frame {
+        outline: 1px solid var(--ink);
+        outline-offset: 3px;
+    }
 }
 
 /* The single cell holds the whole page. Its content is top-aligned; the fixed
@@ -134,7 +165,12 @@
     page-break-after: auto;
 }
 
-/* Screen-only caption above each sheet, as in the prototype. Never printed. */
+/* Screen-only caption above each sheet, as in the prototype.
+   It must stay visible in the on-screen preview but must never reach Dompdf.
+   Dompdf evaluates @page but NOT @media print, so the "print" hiding cannot
+   live in a media query -- it has to be switched off from the PDF template
+   (resources/views/pdf/quote.blade.php sets .page-label { display: none }).
+   See that file for why. */
 .page-label {
     text-align: center;
     font-size: 12px;
@@ -166,7 +202,7 @@
 /* Cells are top-aligned: `vertical-align: middle` makes Dompdf stretch the row
    to the tallest cell's line box, which added ~7mm to this band. Padding lives
    on the outer cells only; the title cell carries its own, tighter padding. */
-.q-strip > div { display: table-cell; vertical-align: top; padding: 9px 16px; }
+.q-strip > div { display: table-cell; vertical-align: middle; padding: 9px 16px; }
 .q-strip > :first-child { width: 36%; }
 .q-strip > :last-child { width: 36%; }
 .q-strip > .q-doc-title { width: auto; padding: 9px 0 8px; }
@@ -294,10 +330,25 @@
 /* --- items table ------------------------------------------------------ */
 .q-table-wrap { padding: 8px 10px 0; }
 .q-table {
-    width: 100%;
+    /* FIXED width, in mm, not 100%.
+       The frame is a fixed 184mm table, so a percentage width here has to be
+       resolved against a table CELL, and Dompdf resolves that inconsistently.
+       Stating the physical width removes the ambiguity -- the sheet is 210mm
+       in both engines, so mm is exact.
+         184mm frame - 2px border x2 - 10px padding x2 = 177.65mm */
+    width: 177.6mm;
     border-spacing: 0;
     border: 1.5px solid var(--ink);
-    table-layout: fixed;
+    /* `table-layout: auto`, NOT `fixed`.
+       Dompdf does not implement `table-layout: fixed`: it accepted the
+       keyword without complaint and then laid every column out EQUAL at
+       35.4mm. That is less than half the intended description width, so
+       "LED panel board 2x4 ft" wrapped onto a second line, the extra row
+       height (~19mm) pushed the sheet past the A4 page, and Dompdf split the
+       document into three pages -- two of them blank. With `auto` plus the
+       explicit <th> widths below, the columns measure 19.5 / 85.5 / 19.7 /
+       35.8mm: the intended 8/45/8/17/22 split. */
+    table-layout: auto;
     font-size: 12.5px;
     /* Explicit absolute line-height. 1.45 x 12.5px = 18.125px = 13.59pt
        (1px = 0.75pt). The table is the tallest block on the sheet, and with
@@ -305,6 +356,24 @@
        browser, which is what forced a second PDF page. */
     line-height: 13.59pt;
 }
+
+/* COLUMN WIDTHS -- declared on the header cells, NOT on <colgroup>.
+   Dompdf discards <colgroup> entirely, so the prototype's 8/45/8/17/22
+   percentages have to be restated as physical widths on the <th>s, which
+   govern the columns under `table-layout: auto`. They are mirrored on the
+   <td>s so the browser agrees. !important is required: Dompdf's cascade
+   resolves these after `.q-table th { padding: ... }` and drops them without
+   it. The widths sum to 177.6mm, the table's own width. */
+.q-table th.w-sr,
+.q-table td.w-sr { width: 14.2mm !important; }     /* 8%  */
+.q-table th.w-desc,
+.q-table td.w-desc { width: 79.9mm !important; }   /* 45% */
+.q-table th.w-qty,
+.q-table td.w-qty { width: 14.2mm !important; }    /* 8%  */
+.q-table th.w-rate,
+.q-table td.w-rate { width: 30.2mm !important; }   /* 17% */
+.q-table th.w-amt,
+.q-table td.w-amt { width: 39.1mm !important; }    /* 22% */
 .q-table th {
     background-color: var(--ink);
     color: #fff;
@@ -348,34 +417,37 @@
 .q-closing { padding-top: 7px; page-break-inside: avoid; }
 .q-words { font-size: 12px; color: #3a4260; padding: 0 16px; overflow-wrap: break-word; }
 .q-words b { color: var(--paper-text); font-weight: 600; }
-.q-foot { display: table; table-layout: fixed; width: 100%; padding: 12px 16px; }
+.q-foot { display: table; table-layout: fixed; width: 100%; padding: 8px 16px; }
 .q-terms { display: table-cell; vertical-align: top; width: 57%; padding-right: 20px; }
-.q-terms h4 { font-size: 13px; font-weight: 700; color: var(--ink); margin-bottom: 4px; }
+.q-terms h4 { font-size: 13px; font-weight: 700; color: var(--ink); margin-bottom: 3px; }
 .q-terms ol { margin: 0; padding-left: 18px; }
-.q-terms li { font-size: 12px; color: #3a4260; line-height: 14.85pt; padding-left: 2px; }
+.q-terms li { font-size: 12px; color: #3a4260; line-height: 13.2pt; padding-left: 2px; }
 .q-terms li.key { color: var(--paper-text); font-weight: 600; }
 .q-sign { display: table-cell; vertical-align: top; width: 43%; text-align: center; }
 .q-sign .for { font-size: 12.5px; color: var(--ink-2); }
 .q-sign .for b { color: var(--paper-text); font-weight: 600; }
 /* The slot is a plain block: a nested table here over-ran the signature
-   column in Dompdf and drew a rounded border around the stamp. */
-.q-stamp-slot { height: 100px; display: block; text-align: center; }
+   column in Dompdf and drew a rounded border around the stamp.
+   The slot must be TALLER than the seal it holds. At 100px it held a 106px
+   seal, so the slot silently grew by 6px and the closing block with it; both
+   are sized together below. */
+.q-stamp-slot { height: 84px; display: block; text-align: center; }
 .q-stamp-slot > img,
 .q-stamp-slot > .q-stamp,
 .q-stamp-slot > .q-stamp-empty { display: inline-block; vertical-align: middle; }
-.q-stamp-img { max-width: 110px; max-height: 110px; object-fit: contain; opacity: 0.9; }
-.q-sig-img { max-width: 150px; max-height: 60px; object-fit: contain; mix-blend-mode: multiply; }
-.q-sign .auth { border-top: 1px solid var(--ink-2); display: inline-block; min-width: 180px; padding-top: 5px; font-size: 12.5px; font-weight: 600; }
-.q-sign .person { font-size: 12px; color: #3a4260; margin-top: 3px; line-height: 12.6pt; }
+.q-stamp-img { max-width: 84px; max-height: 84px; object-fit: contain; opacity: 0.9; }
+.q-sig-img { max-width: 150px; max-height: 56px; object-fit: contain; mix-blend-mode: multiply; }
+.q-sign .auth { border-top: 1px solid var(--ink-2); display: inline-block; min-width: 180px; padding-top: 4px; font-size: 12.5px; font-weight: 600; }
+.q-sign .person { font-size: 12px; color: #3a4260; margin-top: 2px; line-height: 12.6pt; }
 .q-sign .person b { color: var(--paper-text); font-weight: 600; display: block; }
-.q-thanks { text-align: center; font-size: 10.5px; color: #7a819c; padding: 0 12px 4px; }
+.q-thanks { text-align: center; font-size: 10.5px; color: #7a819c; padding: 0 12px 2px; }
 
 /* Generated seal: concentric rings + text, matching the prototype's stamp
    without inline SVG (see the note at the top of this file). */
 .q-stamp {
     position: relative;
-    width: 106px;
-    height: 106px;
+    width: 82px;
+    height: 82px;
     color: var(--stamp);
     opacity: 0.82;
     border: 2.4px solid currentColor;
@@ -435,7 +507,4 @@
 /* --- print ------------------------------------------------------------ */
 @media print {
     body { background: #fff; }
-
-    /* The page caption is a screen affordance only. */
-    .page-label { display: none; }
 }

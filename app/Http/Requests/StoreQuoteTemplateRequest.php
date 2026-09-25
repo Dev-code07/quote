@@ -42,6 +42,7 @@ class StoreQuoteTemplateRequest extends FormRequest
             'use_generated_seal' => ['nullable', 'boolean'],
             'remove_logo' => ['nullable', 'boolean'],
             'remove_signature' => ['nullable', 'boolean'],
+            'remove_company_stamp' => ['nullable', 'boolean'],
 
             'authorized_person' => ['nullable', 'string', 'max:255'],
             'designation' => ['nullable', 'string', 'max:255'],
@@ -68,6 +69,7 @@ class StoreQuoteTemplateRequest extends FormRequest
             'is_default' => $this->boolean('is_default'),
             'remove_logo' => $this->boolean('remove_logo'),
             'remove_signature' => $this->boolean('remove_signature'),
+            'remove_company_stamp' => $this->boolean('remove_company_stamp'),
         ]);
     }
 
@@ -84,6 +86,7 @@ class StoreQuoteTemplateRequest extends FormRequest
             'default_gst_rate.in' => 'GST rate must be 0, 5, 12, 18 or 28.',
             'logo.max' => 'The logo must be 2 MB or smaller.',
             'signature.max' => 'The signature image must be 2 MB or smaller.',
+            'company_stamp.max' => 'The company stamp must be 2 MB or smaller.',
         ];
     }
 }

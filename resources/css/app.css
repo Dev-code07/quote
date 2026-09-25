@@ -107,14 +107,53 @@ body {
         background: none !important;
     }
 
-    .print-sheet {
+    /* Shell wrappers that would otherwise clip, shrink or grey the sheet:
+       sidebar offset, page padding, cards, grid + container query. */
+    main {
+        padding: 0 !important;
+    }
+
+    .quote-split {
+        container-type: normal !important;
+    }
+
+    .quote-split > .grid {
+        display: block !important;
+    }
+
+    .print-stage {
+        padding: 0 !important;
+        margin: 0 !important;
+        overflow: visible !important;
+        background: none !important;
+        border: none !important;
+    }
+
+    .print-doc {
+        transform: none !important;
+        width: auto !important;
+        margin: 0 !important;
+    }
+
+    /* Card wrapper around the sheet adds a border/shadow that would print as
+       a stray box; only the A4 sheet itself should print. */
+    .print-stage .rounded-\[8px\] {
+        border: none !important;
+        box-shadow: none !important;
+        border-radius: 0 !important;
+    }
+
+    .q-sheet {
         box-shadow: none !important;
         margin: 0 !important;
+    }
+
+    .q-page {
         break-after: page;
         page-break-after: always;
     }
 
-    .print-sheet:last-child {
+    .q-page:last-child {
         break-after: auto;
         page-break-after: auto;
     }

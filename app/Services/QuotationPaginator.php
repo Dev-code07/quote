@@ -25,56 +25,108 @@ namespace App\Services;
  */
 class QuotationPaginator
 {
-    /** Usable height inside .q-frame: 297mm - 2x9mm padding - frame margin and border. */
-    private const CONTENT_H = 1040.0;
-
-    /** 5% of the page held back, guarding against font-metric drift. */
-    private const SAFETY = 0.95;
+    /**
+     * Usable height inside .q-frame, in CSS pixels.
+     *
+     * .q-frame is 276.65mm tall (see the exact arithmetic in
+     * resources/css/quotation.css). It is `box-sizing: border-box`, so the
+     * 2px border is already inside that figure; only the border needs
+     * subtracting to get the space content can occupy.
+     * 276.65mm is 1045.7px at 96dpi, less 4px of border.
+     */
+    private const CONTENT_H = 1042.0;
 
     /**
-     * Height of one line of text, in CSS pixels, as Dompdf lays it out.
+     * Fraction of the frame the paginator will actually fill.
      *
-     * CALIBRATED AGAINST DOMPDF, NOT THE BROWSER.
-     * Dompdf builds a line box from the font's own vertical metrics and only
-     * honours `line-height` loosely, so for Hind it never goes below roughly
-     * 30px at the sheet's type sizes. Measured on QT-2026-00006:
+     * Calibrated from real Dompdf output, not from the browser. Dompdf reserves
+     * a full font line box for text where the browser does not, so the same
+     * document measures ~10% taller there; measured header bands came out at
+     * 112.5mm (Sharma) and 126.4mm (ABC) against the browser's ~95mm.
      *
-     *   band                     browser      Dompdf
-     *   .q-strip                   14.6mm      21.5mm
-     *   .q-head                    31.8mm      40.7mm
-     *   .q-meta                     9.2mm      13.2mm
-     *   .q-parties + .q-letter     38.8mm      56.9mm
-     *   .q-table                   71.3mm     107.0mm
-     *   .q-closing                 69.6mm      69.1mm   (matches)
-     *   .q-pagefoot                 7.7mm       7.7mm   (matches)
+     * The value sits deliberately BETWEEN the modelled height of a two-item
+     * and a three-item quotation for the tallest template (979px and 1020px).
+     * That gap is one 41px table row, so any margin in that window splits the
+     * long quote and keeps the short one whole -- and a margin outside it
+     * either merges items Dompdf then splits itself, or needlessly breaks a
+     * quotation that fits. Re-measure the rendered PDF before changing it. */
+    private const SAFETY = 0.98;
+
+    /**
+     * Tolerance, in CSS pixels, on the "does everything fit on this page?"
+     * test at the top of paginate().
      *
-     * The PDF is the binding constraint: it is the renderer that can overflow
-     * an A4 page, so it decides where the breaks go. Sizing the paginator for
-     * the browser instead produced a one-page preview and a two-page PDF.
-     * Every constant below is therefore measured from real Dompdf output.
+     * The modelled heights are sums of measured constants, so a document that
+     * genuinely fits can land a fraction of a pixel over budget. QT-2026-00007
+     * models at 1021.2px against a 1021.16px budget -- 0.04px over -- which used
+     * to force the multi-page path: the carry-back-off then pushed the last row
+     * to page 2 and left ~360px (over a third of the frame) of dead space at the
+     * foot of page 1, on a quotation that fits on a single sheet. The same
+     * split showed in the PDF and in the on-screen preview, since both run
+     * through this paginator.
+     *
+     * 3px is well under one table row (ROW_H = 41px) and well inside the 2%
+     * SAFETY band (~21px of real frame), so a document within the tolerance
+     * still fits the fixed .q-frame. Raise it only after re-measuring the
+     * rendered PDF. */
+    private const FIT_EPSILON = 3.0;
+
+    /**
+     * Height of one line of text, in CSS pixels, as DOMPDF lays it out.
+     *
+     * CALIBRATED AGAINST REAL DOMPDF OUTPUT. Dompdf builds its line box from
+     * the font's own vertical metrics and only then applies `line-height`, so
+     * the browser's arithmetic understates every band. Measured on the seeded
+     * quotes (mm, Dompdf / browser):
+     *
+     *   band                       Dompdf   browser
+     *   .q-strip                     18.2     14.6
+     *   .q-head + .q-meta            39.4     31.8
+     *   .q-parties + .q-letter       36.4     30.8
+     *   .q-table, per item row       10.9      8.1
+     *   .q-table, header + tfoot     46.4     33.5
+     *   .q-closing                   76.7     67.0
+     *   .q-pagefoot                   8.7      8.7   (matches)
+     *
+     * The figures below are those measurements expressed in CSS pixels
+     * (1mm = 3.7795px). The PDF is the binding constraint -- it is the
+     * renderer that can overflow an A4 page -- so it decides where the breaks
+     * go. Sizing for the browser instead produced a one-page preview and a
+     * two-page PDF, which is the bug this replaced.
+     *
+     * Do NOT "simplify" these back to browser metrics to paper over a
+     * regression: re-measure the rendered PDF first.
      */
-    private const LINE_H = 30.0;
+    private const LINE_H = 18.4;
 
-    /** .q-strip as Dompdf renders it: three cells, the tallest driving the row. */
-    private const STRIP_H = 81.0;
+    /**
+     * Height of one items-table ROW (cell padding + line + rule), as Dompdf
+     * lays it out. Distinct from self::LINE_H: a row is not a line, and using
+     * the line height here under-counted every page by ~23px per item --
+     * enough to merge two items onto a page that could only hold one.
+     */
+    private const ROW_H = 41.0;
 
-    /** .q-pagefoot: 6px + 7px padding + 10.5px line + 1px border, 16px gutter. */
-    private const FOOT_H = 30.0;
+    /** .q-strip as Dompdf renders it: 18.2mm. */
+    private const STRIP_H = 69.0;
+
+    /** .q-pagefoot: matches the browser exactly at 8.7mm. */
+    private const FOOT_H = 33.0;
 
     /** .q-table-wrap top padding. */
     private const TABLE_PAD_H = 8.0;
 
-    /** .q-table th: 6px + 6px padding + one Dompdf line + 1px border. */
-    private const THEAD_H = 44.0;
+    /** .q-table header row, as Dompdf renders it. */
+    private const THEAD_H = 36.0;
 
     /** .q-closing top padding. */
     private const CLOSING_PAD_H = 7.0;
 
-    /** .q-thanks, as Dompdf renders it. */
-    private const THANKS_H = 34.0;
+    /** .q-thanks line. */
+    private const THANKS_H = 31.0;
 
     /** .q-stamp-slot height; the signature block is at least this tall. */
-    private const STAMP_SLOT_H = 100.0;
+    private const STAMP_SLOT_H = 84.0;
 
     /**
      * The sheet's horizontal gutter. Every band uses this same value so the
@@ -118,7 +170,9 @@ class QuotationPaginator
             $remaining = array_sum(array_slice($rowHeights, $index));
 
             // Everything left, plus totals and the closing block, on this page?
-            if ($remaining <= $budget - $fixed - $totals - $closing) {
+            // FIT_EPSILON absorbs model rounding so a document that fits is not
+            // split into two half-empty sheets (see the constant's docblock).
+            if ($remaining <= $budget - $fixed - $totals - $closing + self::FIT_EPSILON) {
                 $pages[] = $this->page(array_slice($items, $index), $isFirst, true);
                 $index = $count;
 
@@ -217,24 +271,34 @@ class QuotationPaginator
         $client = $doc['client'] ?? [];
         $terms = $doc['terms'] ?? [];
 
-        // .q-head: 25px padding + brand row (52px logo, else the 40px wordmark)
-        // + rule + address lines. Dompdf line boxes, see self::LINE_H.
+        // .q-head: padding + brand row + rule + address lines.
+        //
+        // The brand row is driven by the COMPANY NAME, not the logo alone: a
+        // long name wraps in the wordmark and adds a whole line, which is
+        // exactly why the ABC template's header measured 126.4mm against the
+        // Sharma template's 112.5mm on identical item data -- and why a
+        // three-item ABC quote needed two pages where a three-item Sharma
+        // quote fitted on one. Modelling only the logo missed that entirely
+        // and merged the items onto a page Dompdf then had to split.
+        $nameLines = $this->lineCount((string) ($company['name'] ?? ''), 20);
         $brand = ! empty($company['logo_url']) ? 52.0 : 40.0;
-        $head = 25.0 + $brand + 19.0 + $this->lineCount((string) ($company['address'] ?? ''), 78) * self::LINE_H;
+        $head = 32.0 + $brand + 27.0
+            + ($nameLines - 1) * 53.0
+            + $this->lineCount((string) ($company['address'] ?? ''), 78) * self::LINE_H;
 
         // .q-meta: label and value on one baseline.
-        $meta = 44.0;
+        $meta = 47.0;
 
         // .q-parties: whichever of the client block and validity block is taller.
-        $clientBlock = 18.0 + $this->lineCount((string) ($client['address'] ?? ''), 62) * self::LINE_H + 44.0;
-        $parties = 24.0 + max($clientBlock, 74.0);
+        $clientBlock = 26.0 + $this->lineCount((string) ($client['address'] ?? ''), 62) * self::LINE_H + 47.0;
+        $parties = 34.0 + max($clientBlock, 64.0);
 
         // .q-letter: salute plus the intro paragraph.
         $intro = strtr(
             trim((string) ($terms['intro'] ?? '')),
             ['{enquiry_no}' => ' ', '{enquiry_date}' => ' ', '{client_name}' => ' ']
         );
-        $letter = 16.0 + 18.0 + $this->lineCount($intro, 96) * self::LINE_H;
+        $letter = 22.0 + 26.0 + $this->lineCount($intro, 96) * self::LINE_H;
 
         return self::STRIP_H + $head + $meta + $parties + $letter;
     }
@@ -253,9 +317,8 @@ class QuotationPaginator
         $rows += ((float) ($totals['gst_rate'] ?? 0)) > 0 ? 1 : 0;
         $rows += 1;                                                  // Grand Total
 
-        // Regular rows are 5px + 5px padding + a Dompdf line; the Grand Total
-        // row is 6px + 6px padding.
-        return ($rows - 1) * (self::LINE_H + 11.0) + self::LINE_H + 13.0 + 2.0;
+        // Regular tfoot rows carry the same line box as the body, plus padding.
+        return ($rows - 1) * (self::LINE_H + 12.0) + self::LINE_H + 14.0 + 2.0;
     }
 
     /**
@@ -279,8 +342,9 @@ class QuotationPaginator
 
         $lines += count($terms['extra'] ?? []);
 
-        // .q-terms: heading plus one line per term. Dompdf line box.
-        $termsBlock = 23.0 + $lines * self::LINE_H;
+        // .q-terms: heading plus one line per term, at 13.2pt as Dompdf
+        // renders it (not self::LINE_H, which is the table's line box).
+        $termsBlock = 32.0 + $lines * 17.6;
 
         return self::CLOSING_PAD_H
             + 17.0                                                 // .q-words
@@ -302,7 +366,7 @@ class QuotationPaginator
         );
 
         // .q-table td: 6px + 6px padding + a Dompdf line + 1px rule.
-        return 14.0 + $lines * self::LINE_H;
+        return self::ROW_H * $lines;
     }
 
     /**

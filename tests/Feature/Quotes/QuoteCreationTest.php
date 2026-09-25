@@ -51,6 +51,27 @@ class QuoteCreationTest extends TestCase
         ], $overrides);
     }
 
+    public function test_quote_snapshot_includes_template_signature_and_stamp_urls(): void
+    {
+        $this->template->update([
+            'signature_path' => 'templates/signatures/snapshot.png',
+            'company_stamp_path' => 'templates/stamps/snapshot.png',
+        ]);
+
+        $this->actingAs($this->admin)->post(route('quotes.store'), $this->payload());
+
+        $quote = Quote::firstOrFail();
+
+        $this->assertStringContainsString(
+            '/storage/templates/signatures/snapshot.png',
+            $quote->template_snapshot['signature_url']
+        );
+        $this->assertStringContainsString(
+            '/storage/templates/stamps/snapshot.png',
+            $quote->template_snapshot['stamp_url']
+        );
+    }
+
     public function test_quote_can_be_created_with_computed_totals(): void
     {
         $this->actingAs($this->admin)

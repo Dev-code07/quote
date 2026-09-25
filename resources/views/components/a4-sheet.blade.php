@@ -201,40 +201,43 @@
 
             {{-- 6. Items --}}
             <div class="q-table-wrap">
-                {{-- Column widths as percentages of the sheet, not px.
-                     The sheet is a fixed 210mm in both the preview and the PDF,
-                     so a percentage lands on the same physical width in each,
-                     while px would depend on the renderer's CSS pixel size. --}}
+                {{-- Column widths live on the cells (.w-* classes in
+                     resources/css/quotation.css), not on <colgroup>: Dompdf
+                     discards <colgroup> and lays every column out equal, which
+                     squeezed the description column and wrapped descriptions
+                     onto extra lines. The <col> elements are kept for browsers
+                     that do honour them; both express the same 8/45/8/17/22%
+                     split from the prototype. --}}
                 <table class="q-table">
                     <colgroup>
-                        <col style="width: 8%">
-                        <col style="width: 45%">
-                        <col style="width: 8%">
-                        <col style="width: 17%">
-                        <col style="width: 22%">
+                        <col style="width: 14.2mm">
+                        <col style="width: 79.9mm">
+                        <col style="width: 14.2mm">
+                        <col style="width: 30.2mm">
+                        <col style="width: 39.1mm">
                     </colgroup>
                     <thead>
                         <tr>
-                            <th class="c">Sr. No.</th>
-                            <th>Item Description</th>
-                            <th class="c">Qty.</th>
-                            <th class="r">Rate (₹)</th>
-                            <th class="r">Amount (₹)</th>
+                            <th class="c w-sr">Sr. No.</th>
+                            <th class="w-desc">Item Description</th>
+                            <th class="c w-qty">Qty.</th>
+                            <th class="r w-rate">Rate (₹)</th>
+                            <th class="r w-amt">Amount (₹)</th>
                         </tr>
                     </thead>
                     <tbody>
                         @forelse ($pageItems as $item)
                             <tr>
-                                <td class="c">{{ str_pad((string) ($item['position'] ?? $loop->iteration), 2, '0', STR_PAD_LEFT) }}</td>
-                                <td class="desc">{{ $item['description'] ?? '—' }}</td>
-                                <td class="c">{{ $rate($item['qty'] ?? 0) }}</td>
-                                <td class="r">{{ $money($item['rate'] ?? 0) }}</td>
-                                <td class="r">{{ $money($item['amount'] ?? 0) }}</td>
+                                <td class="c w-sr">{{ str_pad((string) ($item['position'] ?? $loop->iteration), 2, '0', STR_PAD_LEFT) }}</td>
+                                <td class="desc w-desc">{{ $item['description'] ?? '—' }}</td>
+                                <td class="c w-qty">{{ $rate($item['qty'] ?? 0) }}</td>
+                                <td class="r w-rate">{{ $money($item['rate'] ?? 0) }}</td>
+                                <td class="r w-amt">{{ $money($item['amount'] ?? 0) }}</td>
                             </tr>
                         @empty
                             @if (! $docHasItems)
                                 <tr>
-                                    <td colspan="5" class="desc">No items added yet.</td>
+                                    <td colspan="5" class="desc w-desc">No items added yet.</td>
                                 </tr>
                             @endif
                         @endforelse

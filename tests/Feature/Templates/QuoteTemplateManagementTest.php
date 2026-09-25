@@ -210,6 +210,26 @@ class QuoteTemplateManagementTest extends TestCase
         Storage::disk('public')->assertExists($template->logo_path);
     }
 
+    public function test_signature_and_company_stamp_uploads_are_stored_and_exposed(): void
+    {
+        Storage::fake('public');
+        $admin = $this->admin();
+
+        $this->actingAs($admin)->post(route('templates.store'), $this->payload([
+            'signature' => UploadedFile::fake()->image('signature.png', 240, 80),
+            'company_stamp' => UploadedFile::fake()->image('stamp.jpg', 160, 160),
+        ]))->assertRedirect();
+
+        $template = QuoteTemplate::where('name', 'Standard Business Quote')->firstOrFail();
+
+        $this->assertNotNull($template->signature_path);
+        $this->assertNotNull($template->company_stamp_path);
+        Storage::disk('public')->assertExists($template->signature_path);
+        Storage::disk('public')->assertExists($template->company_stamp_path);
+        $this->assertStringContainsString('/storage/templates/signatures/', $template->signatureUrl());
+        $this->assertStringContainsString('/storage/templates/stamps/', $template->companyStampUrl());
+    }
+
     public function test_rejecting_a_non_image_upload(): void
     {
         Storage::fake('public');

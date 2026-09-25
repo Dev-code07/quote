@@ -12,7 +12,6 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
-use Illuminate\Support\Facades\Storage;
 
 #[Fillable([
     'name', 'is_default', 'accent_color', 'header_alignment',
@@ -104,7 +103,7 @@ class QuoteTemplate extends Model
      */
     public function logoUrl(): ?string
     {
-        return $this->logo_path ? Storage::disk('public')->url($this->logo_path) : null;
+        return $this->assetUrl($this->logo_path);
     }
 
     /**
@@ -112,7 +111,7 @@ class QuoteTemplate extends Model
      */
     public function signatureUrl(): ?string
     {
-        return $this->signature_path ? Storage::disk('public')->url($this->signature_path) : null;
+        return $this->assetUrl($this->signature_path);
     }
 
     /**
@@ -120,7 +119,19 @@ class QuoteTemplate extends Model
      */
     public function companyStampUrl(): ?string
     {
-        return $this->company_stamp_path ? Storage::disk('public')->url($this->company_stamp_path) : null;
+        return $this->assetUrl($this->company_stamp_path);
+    }
+
+    /**
+     * Build an asset URL against the current application host.
+     *
+     * Storage::url() uses APP_URL, which is commonly left as http://localhost
+     * while local development is served on 127.0.0.1:8000. The latter must not
+     * silently send image requests to Apache/WAMP on port 80.
+     */
+    private function assetUrl(?string $path): ?string
+    {
+        return $path ? asset('storage/'.ltrim($path, '/')) : null;
     }
 
     /**

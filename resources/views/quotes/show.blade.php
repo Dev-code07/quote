@@ -2,7 +2,8 @@
 @use('App\Support\Money')
 
 <x-app-layout :title="$quote->quote_number">
-    <x-section-header :title="$quote->quote_number" back="{{ route('quotes.index') }}">
+    {{-- Hidden in print: only the A4 sheet prints (see print CSS in app.css). --}}
+    <x-section-header :title="$quote->quote_number" back="{{ route('quotes.index') }}" class="no-print">
         <x-slot name="description">{{ $quote->clientName() }} &middot; {{ $quote->quote_date?->format('d M Y') }}</x-slot>
         <x-slot name="actions">
             <x-badge :status="$quote->status->tone()">{{ $quote->status->label() }}</x-badge>
@@ -36,10 +37,18 @@
 
         {{--
             Prints the document only, and names the file after the quotation.
-            The title is restored immediately after the print dialog closes.
+            Uses a plain onclick so printing works even when Alpine fails to
+            load (e.g. `npm run dev` not running). The filename is set via
+            document.title right before window.print(); browsers suggest it as
+            the default name in the Save-as-PDF dialog.
         --}}
-        <button type="button" class="no-print" x-data x-on:click="const old = document.title; document.title = @js($quote->quote_number.' - '.$quote->clientName()); window.print(); document.title = old;">
-            <x-button variant="ghost" icon="printer">Print</x-button>
+        {{-- Print button: lives OUTSIDE x-button so no nested <button> is rendered
+             (invalid nested buttons swallow the click and nothing happens). --}}
+        <button type="button" id="quote-print-btn"
+            class="no-print inline-flex items-center justify-center gap-[7px] whitespace-nowrap rounded-[6px] border border-app-border bg-white py-[9px] pl-[16px] pr-[16px] text-[13px] font-semibold leading-none text-app-text transition-colors hover:bg-app-neutral-soft"
+            data-print-title="{{ $quote->quote_number.' - '.$quote->clientName() }}">
+            <x-icon name="printer" :size="16" class="shrink-0" />
+            Print
         </button>
 
         <form method="POST" action="{{ route('quotes.duplicate', $quote) }}">
@@ -70,7 +79,7 @@
                 </div>
 
                 <div class="print-stage overflow-auto bg-app-bg p-6">
-                    <div class="mx-auto origin-top" x-bind:style="`transform: scale(${zoom / 100}); width: ${210 * 96 / 25.4}px;`">
+                    <div class="print-doc mx-auto origin-top" x-bind:style="`transform: scale(${zoom / 100}); width: ${210 * 96 / 25.4}px;`">
                         <x-a4-sheet :doc="$doc" />
                     </div>
                 </div>
@@ -138,4 +147,32 @@
         </div>
     </div>
     </div>
+
+    {{-- Print handler: bound via addEventListener so it works even when Alpine fails
+         to load and is never blocked by CSP `script-src` (no inline handler). --}}
+    <script>
+        (function () {
+            function bindPrint() {
+                var btn = document.getElementById('quote-print-btn');
+                if (!btn || btn.dataset.printBound) return;
+                btn.dataset.printBound = '1';
+                btn.addEventListener('click', function () {
+                    try {
+                        var old = document.title;
+                        var name = btn.getAttribute('data-print-title') || old;
+                        document.title = name;
+                        window.print();
+                        window.setTimeout(function () { document.title = old; }, 500);
+                    } catch (e) {
+                        window.print();
+                    }
+                });
+            }
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', bindPrint);
+            } else {
+                bindPrint();
+            }
+        })();
+    </script>
 </x-app-layout>

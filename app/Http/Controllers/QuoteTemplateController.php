@@ -302,6 +302,7 @@ class QuoteTemplateController extends Controller
 
         $this->uploads->delete($model->logo_path);
         $this->uploads->delete($model->signature_path);
+        $this->uploads->delete($model->company_stamp_path);
 
         if ($liveQuotes) {
             // Quotes keep their own snapshot, so the template row can go while

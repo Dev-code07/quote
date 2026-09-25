@@ -7,6 +7,7 @@ use App\Models\Quote;
 // both the facade (Pdf) and the wrapper (PDF) under their own names collides.
 use Barryvdh\DomPDF\Facade\Pdf as PdfFacade;
 use Barryvdh\DomPDF\PDF as Dompdf;
+use Illuminate\Support\Facades\Storage;
 
 /**
  * Server-side PDF generation (PRD FR-11, AD-5).
@@ -73,13 +74,69 @@ class PdfService
     {
         $quote->loadMissing('items');
 
+        $doc = $this->documents->fromQuote($quote);
+        $doc['company'] = $this->inlineImageAssets($doc['company'] ?? []);
+
         return PdfFacade::loadView('pdf.quote', [
-            'doc' => $this->documents->fromQuote($quote),
+            'doc' => $doc,
             'styles' => $this->stylesheet(),
         ])
             ->setPaper('a4')
             ->setOption('isRemoteEnabled', false)
             ->setOption('isHtml5ParserEnabled', true);
+    }
+
+    /**
+     * Dompdf cannot fetch the public HTTP URL when remote loading is disabled.
+     * Convert only local public-disk assets to data URIs so the PDF embeds the
+     * actual uploaded logo/signature/stamp without opening remote file access.
+     *
+     * @param  array<string, mixed>  $company
+     * @return array<string, mixed>
+     */
+    private function inlineImageAssets(array $company): array
+    {
+        foreach (['logo_url', 'signature_url', 'stamp_url'] as $key) {
+            $url = $company[$key] ?? null;
+
+            if (! is_string($url) || $url === '' || str_starts_with($url, 'data:')) {
+                continue;
+            }
+
+            $path = $this->publicAssetPath($url);
+
+            if ($path === null || ! Storage::disk('public')->exists($path)) {
+                continue;
+            }
+
+            $contents = Storage::disk('public')->get($path);
+
+            if ($contents === '') {
+                continue;
+            }
+
+            $mime = Storage::disk('public')->mimeType($path) ?: 'application/octet-stream';
+            $company[$key] = 'data:'.$mime.';base64,'.base64_encode($contents);
+        }
+
+        return $company;
+    }
+
+    /**
+     * Extract a public-disk relative path from a local storage URL.
+     */
+    private function publicAssetPath(string $url): ?string
+    {
+        $path = parse_url($url, PHP_URL_PATH);
+        $prefix = '/storage/';
+
+        if (! is_string($path) || ! str_starts_with($path, $prefix)) {
+            return null;
+        }
+
+        $relative = rawurldecode(substr($path, strlen($prefix)));
+
+        return $relative !== '' && ! str_contains($relative, '..') ? $relative : null;
     }
 
     /**

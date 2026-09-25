@@ -284,6 +284,7 @@ document.addEventListener('alpine:init', () => {
             reader.onload = () => {
                 this.pending[key] = reader.result;
                 this.paintThumb(key, reader.result);
+                this.applyImages();
                 this.schedule();
             };
 
@@ -380,23 +381,26 @@ document.addEventListener('alpine:init', () => {
         overlay(slot, key, className) {
             const pending = this.pending[key];
 
-            // Drop whatever the server rendered for this part.
+            // Remove a previous local overlay. When a new file is selected,
+            // also remove the server-rendered image for that same part; keeping
+            // both makes the replacement appear to have been ignored.
             slot.querySelectorAll(`[data-q-overlay="${key}"]`).forEach((node) => node.remove());
 
-            if (key === 'stamp') {
-                slot.querySelectorAll('.q-stamp, .q-stamp-empty').forEach((node) => node.remove());
-            }
+            if (pending) {
+                const serverSelector = key === 'stamp'
+                    ? '[data-q-part="stamp"], .q-stamp, .q-stamp-empty'
+                    : '[data-q-part="signature"], .q-sig-img';
 
-            if (!pending) {
-                return;
-            }
+                slot.querySelectorAll(serverSelector).forEach((node) => node.remove());
 
-            const image = document.createElement('img');
-            image.src = pending;
-            image.alt = '';
-            image.className = className;
-            image.dataset.qOverlay = key;
-            slot.appendChild(image);
+                const image = document.createElement('img');
+                image.src = pending;
+                image.alt = '';
+                image.className = className;
+                image.dataset.qOverlay = key;
+                image.dataset.qPart = key === 'stamp' ? 'stamp' : 'signature';
+                slot.appendChild(image);
+            }
         },
 
         /* ---------------- metrics ---------------- */
@@ -467,6 +471,38 @@ document.addEventListener('alpine:init', () => {
             area.focus();
             area.selectionStart = area.selectionEnd = start + token.length;
             area.dispatchEvent(new Event('input', { bubbles: true }));
+        },
+    }));
+    /**
+     * Dashboard (docs/quoteflow_dashboard.html): quote list with a template
+     * picker overlay and a transient toast. Filters themselves are
+     * server-driven (the form GETs), so the URL stays shareable.
+     */
+    Alpine.data('dashboardPage', (seed) => ({
+        search: seed?.search ?? '',
+        status: seed?.status ?? '',
+        date: seed?.date ?? '',
+        templatePickerOpen: false,
+        toastVisible: false,
+        toastMessage: '',
+        toastTimer: null,
+
+        openTemplatePicker() {
+            this.templatePickerOpen = true;
+        },
+
+        closeTemplatePicker() {
+            this.templatePickerOpen = false;
+        },
+
+        /** Prototype showToast(): 2.6s auto-dismiss. */
+        notify(message) {
+            this.toastMessage = message;
+            this.toastVisible = true;
+            clearTimeout(this.toastTimer);
+            this.toastTimer = setTimeout(() => {
+                this.toastVisible = false;
+            }, 2600);
         },
     }));
 });

@@ -80,12 +80,25 @@ class TemplateDraftService
             ?? HeaderAlignment::default();
         $draft->is_default = filter_var($input['is_default'] ?? false, FILTER_VALIDATE_BOOLEAN);
 
-        // Branding files are only ever replaced on save; the preview keeps
-        // showing whatever is already stored (or nothing, when creating).
-        $draft->logo_path = $existing?->logo_path;
-        $draft->signature_path = $existing?->signature_path;
-        $draft->company_stamp_path = $existing?->company_stamp_path;
+        // Branding files are only ever replaced on save. The preview keeps
+        // showing the current stored files, unless the editor has explicitly
+        // requested that one be removed.
+        $draft->logo_path = $this->pathAfterRemoval($input, 'remove_logo', $existing?->logo_path);
+        $draft->signature_path = $this->pathAfterRemoval($input, 'remove_signature', $existing?->signature_path);
+        $draft->company_stamp_path = $this->pathAfterRemoval($input, 'remove_company_stamp', $existing?->company_stamp_path);
 
         return $draft;
+    }
+
+    /**
+     * Apply a remove-file flag without teaching the draft service about the
+     * actual file inputs. Newly selected files are overlaid locally by Alpine
+     * and are persisted only when the editor form is saved.
+     *
+     * @param  array<string, mixed>  $input
+     */
+    private function pathAfterRemoval(array $input, string $flag, ?string $path): ?string
+    {
+        return filter_var($input[$flag] ?? false, FILTER_VALIDATE_BOOLEAN) ? null : $path;
     }
 }

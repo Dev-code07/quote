@@ -140,10 +140,15 @@ class TemplatePreviewTest extends TestCase
         $template = QuoteTemplate::factory()->create([
             'company_name' => 'Acme',
             'logo_path' => 'templates/logos/kept.png',
+            'signature_path' => 'templates/signatures/kept-signature.png',
+            'company_stamp_path' => 'templates/stamps/kept-stamp.png',
+            'use_generated_seal' => false,
         ]);
 
         Storage::fake('public');
         Storage::disk('public')->put('templates/logos/kept.png', 'x');
+        Storage::disk('public')->put('templates/signatures/kept-signature.png', 'x');
+        Storage::disk('public')->put('templates/stamps/kept-stamp.png', 'x');
 
         $html = $this->preview([
             'template_id' => $template->getKey(),
@@ -152,6 +157,32 @@ class TemplatePreviewTest extends TestCase
 
         $this->assertStringContainsString('Acme Computers', $html, 'the new name is used');
         $this->assertStringContainsString('kept.png', $html, 'the unsaved logo is still shown');
+        $this->assertStringContainsString('kept-signature.png', $html, 'the unsaved signature is still shown');
+        $this->assertStringContainsString('kept-stamp.png', $html, 'the unsaved stamp is still shown');
+    }
+
+    public function test_removing_images_is_reflected_in_the_preview(): void
+    {
+        $template = QuoteTemplate::factory()->create([
+            'company_name' => 'Acme',
+            'signature_path' => 'templates/signatures/remove-me.png',
+            'company_stamp_path' => 'templates/stamps/remove-me.png',
+            'use_generated_seal' => false,
+        ]);
+
+        Storage::fake('public');
+        Storage::disk('public')->put('templates/signatures/remove-me.png', 'x');
+        Storage::disk('public')->put('templates/stamps/remove-me.png', 'x');
+
+        $html = $this->preview([
+            'template_id' => $template->getKey(),
+            'remove_signature' => '1',
+            'remove_company_stamp' => '1',
+            'use_generated_seal' => '0',
+        ]);
+
+        $this->assertStringNotContainsString('remove-me.png', $html);
+        $this->assertStringContainsString('No stamp', $html);
     }
 
     public function test_preview_never_writes_to_the_database(): void
