@@ -46,6 +46,16 @@
         .q-sheet {
             box-shadow: none;
             margin: 0 auto;
+            /* Dompdf adds a block's padding to a fixed `height` even when
+               box-sizing says border-box, so the shared stylesheet's 296mm
+               sheet would occupy 310mm here: each sheet was pushed onto the
+               following page and left a BLANK page behind (visible as pages 1
+               and 3 of a two-page quotation). The browser's 296mm already
+               includes the 2 x 7mm padding, so the PDF must declare
+               296mm - 2 x 7mm = 282mm to paint the very same 296mm sheet.
+               The limit is exact, not approximate: 284mm pages four times,
+               283mm pages twice. */
+            height: 282mm;
         }
         .q-frame { margin: 4px; }
 

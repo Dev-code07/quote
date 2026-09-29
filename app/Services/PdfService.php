@@ -84,6 +84,8 @@ class PdfService
     {
         $quote->loadMissing('items');
 
+        $this->forgetFontRegistryEntriesMissingHere();
+
         $doc = $this->documents->fromQuote($quote);
         $doc['company'] = $this->inlineImageAssets($doc['company'] ?? []);
 
@@ -103,6 +105,89 @@ class PdfService
             ->setOption('fontHeightRatio', self::FONT_HEIGHT_RATIO)
             ->setOption('isRemoteEnabled', false)
             ->setOption('isHtml5ParserEnabled', true);
+    }
+
+    /**
+     * Drop font registry entries that only resolve on the machine that wrote
+     * them.
+     *
+     * Dompdf records every registered family in
+     * storage/fonts/installed-fonts.json, and that registry is machine
+     * specific: written on the Windows dev box it stores absolute paths such
+     * as D:\...\quote\storage\fonts\hind_normal_4d0aa.... Carried to shared
+     * hosting inside the deployment zip, every one of those lookups fails --
+     * yet Dompdf still measures the text from the entry, embeds a font with no
+     * usable descriptor and lays the document out against the wrong metrics,
+     * which is what made labels collide with their values and spread glyphs
+     * apart on the host while the same code was flawless locally.
+     *
+     * Pruning the unusable entries lets Dompdf re-register the self-hosted
+     * TTFs from public/fonts and rewrite the registry with portable names, so
+     * one zip behaves identically on Windows, Linux and shared hosting.
+     */
+    private function forgetFontRegistryEntriesMissingHere(): void
+    {
+        $path = storage_path('fonts/installed-fonts.json');
+
+        if (! is_file($path)) {
+            return;
+        }
+
+        $registry = json_decode((string) file_get_contents($path), true);
+
+        if (! is_array($registry)) {
+            @unlink($path);
+
+            return;
+        }
+
+        $portable = [];
+
+        foreach ($registry as $family => $weights) {
+            if (! is_array($weights)) {
+                continue;
+            }
+
+            foreach ($weights as $weight => $file) {
+                if (is_string($file) && $this->fontFileResolvesHere($file)) {
+                    $portable[$family][$weight] = $file;
+                }
+            }
+        }
+
+        if ($portable === $registry) {
+            return;
+        }
+
+        if ($portable === []) {
+            @unlink($path);
+
+            return;
+        }
+
+        file_put_contents($path, json_encode($portable, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
+    }
+
+    /**
+     * A registry entry is either a bare name inside Dompdf's font directory --
+     * portable, and how Dompdf writes families it discovers through @font-face
+     * -- or an absolute path that only means something on the machine that
+     * wrote it. Absolute entries survive only while the file is really there.
+     */
+    private function fontFileResolvesHere(string $file): bool
+    {
+        if ($file === '') {
+            return false;
+        }
+
+        // Absolute path (Windows drive or POSIX root): usable only if present.
+        if (preg_match('#^[A-Za-z]:[\\\\/]#', $file) === 1 || str_starts_with($file, '/')) {
+            return is_file($file);
+        }
+
+        $directory = storage_path('fonts/');
+
+        return is_file($directory.$file) || is_file($directory.$file.'.ttf');
     }
 
     /**

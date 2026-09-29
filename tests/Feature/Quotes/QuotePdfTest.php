@@ -167,6 +167,62 @@ class QuotePdfTest extends TestCase
         );
     }
 
+    /**
+     * Dompdf's font registry (storage/fonts/installed-fonts.json) is machine
+     * specific: written on the development box it holds absolute paths such as
+     * D:\...\storage\fonts\hind_normal_.... Shipped to shared hosting inside
+     * the deployment zip, none of those paths resolve there, yet Dompdf still
+     * measures text from the entry and embeds a descriptor-less font -- which
+     * is what made the hosted PDF overlap itself (labels colliding with their
+     * values, glyphs spread apart, blank pages) while the identical code was
+     * flawless locally. PdfService must drop entries this machine cannot
+     * resolve so Dompdf re-registers the TTFs from public/fonts.
+     */
+    public function test_font_registry_drops_entries_that_do_not_resolve_here(): void
+    {
+        $path = storage_path('fonts/installed-fonts.json');
+        $original = is_file($path) ? (string) file_get_contents($path) : null;
+
+        // Absolute paths that exist on no machine but the one they were
+        // written on (a POSIX deployment path and a foreign Windows drive).
+        $foreignPosix = '/home/example/deploy/storage/fonts/hind_normal_00000000000000000000000000000000.ttf';
+        $foreignWindows = 'Z:\\example\\deploy\\storage\\fonts\\hind_bold_11111111111111111111111111111111.ttf';
+
+        file_put_contents($path, json_encode([
+            'hind' => [
+                'normal' => $foreignPosix,
+                '600' => 'hind_600_d32d5558d780ddc89d3b583ef837131d',
+                'bold' => $foreignWindows,
+            ],
+            'zilla slab' => ['bold' => 'zilla_slab_bold_8cad8266abacdb70074608cb0e9e98d0'],
+        ], JSON_PRETTY_PRINT));
+
+        try {
+            $bytes = app(PdfService::class)->render($this->quote->fresh()->load('items'));
+
+            $this->assertStringContainsString('/BaseFont', $bytes, 'The PDF must still embed its fonts.');
+
+            $registry = (string) file_get_contents($path);
+
+            $this->assertStringNotContainsString(
+                'hind_normal_00000000000000000000000000000000',
+                $registry,
+                'An entry that cannot resolve on this machine must not survive a render.'
+            );
+            $this->assertStringNotContainsString(
+                'hind_bold_11111111111111111111111111111111',
+                $registry,
+                'A foreign Windows path must not survive a render.'
+            );
+        } finally {
+            if ($original === null) {
+                @unlink($path);
+            } else {
+                file_put_contents($path, $original);
+            }
+        }
+    }
+
     public function test_generated_pdf_has_no_blank_pages(): void
     {
         foreach (range(2, 6) as $position) {
@@ -183,7 +239,13 @@ class QuotePdfTest extends TestCase
         $bytes = app(PdfService::class)->render($this->quote);
         $pageStreams = $this->pdfPageContentStreams($bytes);
 
-        $this->assertGreaterThanOrEqual(2, count($pageStreams), 'The fixture must exercise PDF pagination.');
+        $this->assertSame(
+            2,
+            count($pageStreams),
+            'A six-row quote must page exactly twice: a fixed-height .q-sheet that no longer fits the '
+            .'A4 page pushes itself, and a blank page, onto the following sheet (see the 282mm override '
+            .'in resources/views/pdf/quote.blade.php).'
+        );
         $this->assertPdfFrameStaysInsidePage($pageStreams);
 
         foreach ($pageStreams as $page => $stream) {
