@@ -56,6 +56,57 @@ class QuotePdfTest extends TestCase
         $response->assertHeader('content-type', 'application/pdf');
     }
 
+    public function test_builder_preview_renders_unsaved_input_as_a4_sheet(): void
+    {
+        $template = QuoteTemplate::query()->firstOrFail();
+        $client = Client::query()->firstOrFail();
+
+        $response = $this->actingAs($this->admin)->post(route('quotes.preview'), [
+            'template_id' => $template->id,
+            'client_id' => $client->id,
+            'quote_date' => now()->toDateString(),
+            'valid_until' => now()->addDays(15)->toDateString(),
+            'gst_rate' => 18,
+            'items' => [
+                ['description' => 'Business laptop', 'qty' => 2, 'rate' => 50000],
+                ['description' => 'Half-typed row', 'qty' => '', 'rate' => ''],
+            ],
+            'terms' => ['delivery' => 'Within 7 days'],
+        ]);
+
+        $response->assertOk();
+        // The shared sheet, not a second copy of the markup.
+        $response->assertSee('q-sheet', false);
+        $response->assertSee('Business laptop', false);
+        $response->assertSee('Within 7 days', false);
+    }
+
+    public function test_builder_preview_never_consumes_a_quote_number(): void
+    {
+        $template = QuoteTemplate::query()->firstOrFail();
+        $client = Client::query()->firstOrFail();
+
+        $this->actingAs($this->admin)->post(route('quotes.preview'), [
+            'template_id' => $template->id,
+            'client_id' => $client->id,
+            'quote_date' => now()->toDateString(),
+            'valid_until' => now()->addDays(15)->toDateString(),
+            'gst_rate' => 18,
+            'items' => [['description' => 'Business laptop', 'qty' => 2, 'rate' => 50000]],
+        ])->assertOk();
+
+        // Still only the one quote from setUp(): no number was allocated.
+        $this->assertSame(1, Quote::query()->count());
+    }
+
+    public function test_builder_preview_requires_authentication(): void
+    {
+        // Drop the user set in setUp so this really is an unauthenticated request.
+        $this->app['auth']->forgetGuards();
+
+        $this->post(route('quotes.preview'), [])->assertRedirect(route('login'));
+    }
+
     public function test_pdf_filename_contains_the_quote_number(): void
     {
         $response = $this->actingAs($this->admin)->get(route('quotes.pdf', $this->quote));
@@ -150,12 +201,81 @@ class QuotePdfTest extends TestCase
     }
 
     /**
+     * The A4 grid is calibrated against the approved sample (QT-2026-00002).
+     *
+     * Dompdf ignores a declared line-height and paints
+     * (line_height / font_size) * natural_height * fontHeightRatio instead
+     * (FrameDecorator/Text.php + FontMetrics/Adapter). Hind's natural height is
+     * 1.25em, so PdfService pins the ratio to 0.8 and the shared stylesheet
+     * declares the sample's line boxes. If either side drifts, the A4 preview,
+     * the printed page and the PDF stop agreeing -- the defect that put the
+     * totals band on a page of its own.
+     *
+     * @see resources/css/quotation.css for the full derivation.
+     */
+    public function test_line_boxes_are_calibrated_to_the_approved_sample(): void
+    {
+        $method = new \ReflectionMethod(PdfService::class, 'pdf');
+        $method->setAccessible(true);
+
+        $dompdf = $method->invoke(app(PdfService::class), $this->quote->fresh()->load('items'))->getDomPDF();
+
+        $this->assertSame(
+            0.8,
+            $dompdf->getOptions()->getFontHeightRatio(),
+            'Dompdf must be told to honour the declared line-height.'
+        );
+
+        // Dompdf reports measured frames while it lays the document out; the
+        // tree itself is disposed once render() returns.
+        $heights = [];
+        $dompdf->setCallbacks([[
+            'event' => 'end_frame',
+            'f' => function ($frame) use (&$heights): void {
+                $node = $frame->get_node();
+
+                if ($node instanceof \DOMElement) {
+                    $heights[] = round((float) $frame->get_content_box()['h'], 2);
+                }
+            },
+        ]]);
+
+        $dompdf->render();
+
+        $this->assertNotEmpty($heights, 'The PDF produced no measured frames.');
+
+        // Dompdf measures in points, and the content box of a single-line
+        // block or cell IS its line box. These three are the declared line
+        // boxes the approved sample was measured from: sheet text 16.775pt,
+        // the contact column 22.28pt and the item table 18.69pt. Before the
+        // calibration the same declarations painted 23.07, 30.64 and 25.71pt,
+        // and the browser painted 18.85, 21.6 and 18.13pt -- three grids.
+        $observed = implode(', ', array_slice(array_unique($heights), 0, 40));
+
+        foreach (['sheet text' => 16.775, 'contact column' => 22.28, 'table cell' => 18.69] as $band => $expected) {
+            $matched = array_filter($heights, fn (float $height): bool => abs($height - $expected) < 0.03);
+
+            $this->assertNotEmpty(
+                $matched,
+                "No {$band} line box measures {$expected}pt, so the PDF no longer matches the approved "
+                ."sample. Measured: {$observed}"
+            );
+        }
+    }
+
+    /**
      * Assert that the quotation frame itself remains inside the A4 page.
      *
      * A table can be wider than its containing frame without changing the PDF
      * page count. Dompdf then clips the rightmost cells at the page boundary,
      * which is why this check reads the frame rectangle from the content stream
      * rather than relying only on extracted text.
+     *
+     * The frame is identified by WIDTH, not height: the sheet is content-height
+     * by design (a short page ends after its content, it no longer fills the
+     * 276.65mm frame), so a height threshold would stop matching on short
+     * pages. The frame is 184mm = 521.6pt wide and inset from the page edge;
+     * the page background rectangle starts at x = 0 and is 595.28pt wide.
      *
      * @param  list<string>  $streams
      */
@@ -174,13 +294,10 @@ class QuotePdfTest extends TestCase
             $frameRightEdges = [];
             foreach ($rectangles as $rectangle) {
                 $x = (float) $rectangle[1];
-                $y = (float) $rectangle[2];
                 $width = (float) $rectangle[3];
-                $height = (float) $rectangle[4];
 
-                // The page background is a full-page rectangle starting at x=0;
-                // the quotation frame is the tall inset rectangle above it.
-                if ($x > 0 && $height > 700) {
+                // Inset, frame-width rectangle: the quotation frame itself.
+                if ($x > 0 && $width > 480 && $width < $a4Width) {
                     $frameRightEdges[] = $x + $width;
                 }
             }

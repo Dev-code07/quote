@@ -17,6 +17,7 @@ use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\Response;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Redirect;
 use Illuminate\View\View;
@@ -205,6 +206,46 @@ class QuoteController extends Controller
     }
 
     /**
+     * Live A4 preview for the builder overlay. Same pattern as
+     * QuoteTemplateController::preview: posts current form values, returns
+     * the SAME x-a4-sheet the PDF is built from. Lenient by design — no
+     * validation, nothing consumed (peekNextNumber reads, never allocates),
+     * nothing written, half-finished input still renders.
+     */
+    public function preview(Request $request): Response
+    {
+        $this->authorize('create', Quote::class);
+
+        $template = QuoteTemplate::find($request->integer('template_id'))
+            ?? QuoteTemplate::query()->default()->first()
+            ?? QuoteTemplate::query()->orderBy('name')->firstOrFail();
+
+        $client = $request->filled('client_id')
+            ? Client::query()->find($request->integer('client_id'))
+            : null;
+
+        $quote = $request->filled('quote_id')
+            ? Quote::query()->find($request->integer('quote_id'))
+            : null;
+
+        if ($quote) {
+            $this->authorize('update', $quote);
+        }
+
+        $number = $quote?->quote_number
+            ?? $this->numbers->format(now()->year, $this->peekNextNumber());
+
+        $doc = $this->documents->fromUnsavedInput(
+            $template,
+            $client,
+            $request->all(),
+            $number,
+        );
+
+        return response(view('quotes.partials.preview-sheet', ['doc' => $doc]));
+    }
+
+    /**
      * Move between Draft, Sent and Approved. Expired is never set here (BR-05).
      */
     public function updateStatus(Request $request, Quote $quote): RedirectResponse
@@ -323,9 +364,6 @@ class QuoteController extends Controller
     }
 
     /**
-     * Create or update a quote inside one transaction.
-     */
-    /**
      * Initial state for the Alpine quote builder.
      *
      * @param  Collection<int, QuoteTemplate>  $templates
@@ -336,22 +374,38 @@ class QuoteController extends Controller
         $snapshotTerms = $quote?->terms ?? [];
         $fallback = $this->snapshots->terms($template, $quote ?? new Quote);
 
+        // The terms snapshot stores `extra` as an array of lines (see
+        // SnapshotService::terms via TemplateTokens::lines), but the builder
+        // textarea is bound with x-model="terms.extra" and needs a plain
+        // one-per-line string. Without this the field shows a comma-joined
+        // value and a re-save mangles the lines into one.
+        $toLines = fn ($value): string => is_array($value)
+            ? implode("\n", $value)
+            : (string) ($value ?? '');
+        $snapshotExtra = array_key_exists('extra', $snapshotTerms)
+            ? $snapshotTerms['extra']
+            : $fallback['extra'];
+
         return [
-            'templateId' => $quote?->template_id ?? $template->id,
-            'clientId' => $quote?->client_id ?? '',
-            'gstRate' => (float) ($quote?->gst_rate ?? $template->default_gst_rate),
-            'discount' => (float) ($quote?->discount_amount ?? 0),
-            'items' => $quote?->items->map(fn ($item): array => [
+            'templateId' => (int) (old('template_id', $quote?->template_id) ?? $template->id),
+            'clientId' => (string) (old('client_id', $quote?->client_id) ?? ''),
+            'quoteDate' => old('quote_date', $quote?->quote_date?->format('Y-m-d') ?? ''),
+            'validUntil' => old('valid_until', $quote?->valid_until?->format('Y-m-d') ?? ''),
+            'enquiryNo' => old('enquiry_no', $quote?->enquiry_no ?? ''),
+            'enquiryDate' => old('enquiry_date', $quote?->enquiry_date?->format('Y-m-d') ?? ''),
+            'gstRate' => (float) (old('gst_rate', $quote?->gst_rate) ?? $template->default_gst_rate),
+            'discount' => (float) (old('discount_amount', $quote?->discount_amount) ?? 0),
+            'items' => old('items', $quote?->items->map(fn ($item): array => [
                 'description' => $item->description,
                 'qty' => (float) $item->quantity,
                 'rate' => (float) $item->rate,
-            ])->all() ?? [],
+            ])->all() ?? []),
             'terms' => [
-                'delivery' => $snapshotTerms['delivery'] ?? $template->delivery_period,
-                'warranty' => $snapshotTerms['warranty'] ?? $template->warranty,
-                'validity' => $snapshotTerms['validity'] ?? $template->validity_text,
-                'extra' => $snapshotTerms['extra'] ?? $fallback['extra'],
-                'notes' => $snapshotTerms['notes'] ?? $template->notes,
+                'delivery' => old('terms.delivery', $snapshotTerms['delivery'] ?? $template->delivery_period),
+                'warranty' => old('terms.warranty', $snapshotTerms['warranty'] ?? $template->warranty),
+                'validity' => old('terms.validity', $snapshotTerms['validity'] ?? $template->validity_text),
+                'extra' => old('terms.extra', $toLines($snapshotExtra)),
+                'notes' => old('terms.notes', $snapshotTerms['notes'] ?? $template->notes),
             ],
             'templates' => $templates->mapWithKeys(fn (QuoteTemplate $item): array => [
                 $item->id => [
@@ -368,6 +422,9 @@ class QuoteController extends Controller
         ];
     }
 
+    /**
+     * Create or update a quote inside one transaction.
+     */
     private function persist(?Quote $quote, SaveQuoteRequest $request): Quote
     {
         $template = QuoteTemplate::findOrFail($request->validated('template_id'));

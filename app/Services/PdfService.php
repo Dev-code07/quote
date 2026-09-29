@@ -17,6 +17,16 @@ use Illuminate\Support\Facades\Storage;
  */
 class PdfService
 {
+    /**
+     * 1 / (Hind's natural height as Dompdf reads it). Hind's ascender and
+     * descender are 0.950em and 0.300em, so its line box is 1.25em and
+     * Dompdf's default ratio of 1.1 inflated every line by 37.5%. At 0.8 the
+     * line box equals the declared line-height, exactly like the browser.
+     *
+     * @see resources/css/quotation.css for the full derivation.
+     */
+    private const FONT_HEIGHT_RATIO = 0.8;
+
     public function __construct(private readonly QuotationDocumentService $documents) {}
 
     /**
@@ -82,6 +92,15 @@ class PdfService
             'styles' => $this->stylesheet(),
         ])
             ->setPaper('a4')
+            // Dompdf paints a line box of (line_height / font_size) *
+            // getFontHeight(), and getFontHeight() is
+            // (ascender - descender) * font_size * fontHeightRatio -- the
+            // declared line-height is ignored. Hind's own metrics add up to
+            // 1.25em, so the ratio must be 1 / 1.25 to make Dompdf honour the
+            // stylesheet exactly as the browser does. This is what keeps the
+            // PDF, the A4 preview and the printed page identical; see the
+            // calibration note at the top of resources/css/quotation.css.
+            ->setOption('fontHeightRatio', self::FONT_HEIGHT_RATIO)
             ->setOption('isRemoteEnabled', false)
             ->setOption('isHtml5ParserEnabled', true);
     }

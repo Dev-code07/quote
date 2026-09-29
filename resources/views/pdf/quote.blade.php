@@ -35,18 +35,17 @@
 
         body { margin: 0; }
 
-        /* The sheet is a fixed A4 page; the screen shadow is meaningless on
-           paper. Width/height/padding all come from the shared stylesheet so
-           the PDF cannot drift from the preview.
-           `min-height` is dropped: the sheet's own 297mm is exactly the page
-           height, so the rounding of a single millimetre pushed a blank sheet
-           out after every real one. The .q-frame's fixed height is what makes
-           the page full, and the page background is already white. */
+        /* The sheet is content-height: a page ends after its content, and the
+           .q-page break rules in the shared stylesheet put every page on its
+           own A4 sheet (@page A4 above). The screen shadow is meaningless on
+           paper. Width, padding AND line-height come from the shared
+           stylesheet so the PDF cannot drift from the preview -- an earlier
+           PDF-only `line-height: 12.2pt` here silently restyled every
+           inherited line in the PDF while the preview kept the shared value,
+           which is how the two engines ended up 26mm apart on page 1. */
         .q-sheet {
             box-shadow: none;
             margin: 0 auto;
-            min-height: 0;
-            line-height: 12.2pt;
         }
         .q-frame { margin: 4px; }
 

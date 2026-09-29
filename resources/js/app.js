@@ -12,12 +12,22 @@ window.Alpine = Alpine;
  * (rules.md section 5.1, BR-02).
  */
 document.addEventListener('alpine:init', () => {
-    Alpine.data('quoteBuilder', (seed) => ({
-        templateId: seed.templateId ?? '',
-        clientId: seed.clientId ?? '',
+    Alpine.data('quoteBuilder', (seed, previewEndpoint = '') => ({
+        /* Coerce select-bound ids to strings: option values are strings, and
+           Alpine's x-model uses strict comparison, so numeric ids would never
+           match and Client/Template dropdowns would look empty on edit. */
+        templateId: seed.templateId != null && seed.templateId !== '' ? String(seed.templateId) : '',
+        clientId: seed.clientId != null && seed.clientId !== '' ? String(seed.clientId) : '',
         gstRate: Number(seed.gstRate ?? 18),
         discount: Number(seed.discount ?? 0),
         dirty: false,
+
+        /* A4 preview overlay (docs/quoteflow_quote_builder (1).html). */
+        previewEndpoint,
+        previewOpen: false,
+        previewLoading: false,
+        previewError: '',
+        previewController: null,
 
         items: (seed.items ?? []).map((item) => ({ ...item, key: Math.random() })),
         terms: { ...(seed.terms ?? {}) },
@@ -87,6 +97,101 @@ document.addEventListener('alpine:init', () => {
         fmt(value) {
             return this.money(value);
         },
+
+        /* ---------------- A4 preview overlay ---------------- */
+
+        /** POST the live form to QuoteController::preview and open overlay. */
+        async openPreview() {
+            this.previewOpen = true;
+            this.previewError = '';
+            this.previewLoading = true;
+            document.body.style.overflow = 'hidden';
+
+            if (this.previewController) {
+                this.previewController.abort();
+            }
+
+            this.previewController = new AbortController();
+
+            try {
+                const form = this.$refs.form;
+                const data = new FormData(form);
+
+                // Drop framework + submit-only fields the preview must ignore.
+                for (const key of ['_token', '_method', 'intent', 'quote_id']) {
+                    data.delete(key);
+                }
+
+                if (this.templateId) {
+                    data.set('template_id', this.templateId);
+                }
+
+                if (this.clientId) {
+                    data.set('client_id', this.clientId);
+                }
+
+                const quoteId = form.querySelector('input[name="quote_id"]');
+
+                if (quoteId && quoteId.value) {
+                    data.append('quote_id', quoteId.value);
+                }
+
+                const response = await fetch(this.previewEndpoint, {
+                    method: 'POST',
+                    body: data,
+                    signal: this.previewController.signal,
+                    headers: { 'X-Requested-With': 'XMLHttpRequest' },
+                });
+
+                if (!response.ok) {
+                    throw new Error(`Preview failed (${response.status})`);
+                }
+
+                this.$refs.preview.innerHTML = await response.text();
+            } catch (error) {
+                if (error.name !== 'AbortError') {
+                    console.error('Preview failed', error);
+                    this.previewError = 'Could not load the preview. Check the form and try again.';
+                }
+            } finally {
+                this.previewLoading = false;
+            }
+        },
+
+        closePreview() {
+            this.previewOpen = false;
+            this.previewError = '';
+            document.body.style.overflow = '';
+
+            if (this.previewController) {
+                this.previewController.abort();
+                this.previewController = null;
+            }
+        },
+
+        /** Like the prototype: the saved quotation's real PDF downloads. */
+        downloadPdf() {
+            const form = this.$refs.form;
+            const quoteId = form.querySelector('input[name="quote_id"]');
+
+            if (quoteId && quoteId.value) {
+                window.open(`/quotes/${quoteId.value}/pdf`, '_blank', 'noopener');
+                return;
+            }
+
+            // Not saved yet: keep the prototype flow — save first, then the
+            // show screen offers the real Download PDF.
+            this.closePreview();
+            this.$nextTick(() => {
+                form.requestSubmit(
+                    Object.assign(document.createElement('button'), {
+                        type: 'submit',
+                        name: 'intent',
+                        value: 'generate',
+                    }),
+                );
+            });
+        },
     }));
 
     /**
@@ -97,10 +202,9 @@ document.addEventListener('alpine:init', () => {
      * runs the same QuotationDocumentService the PDF uses, so the preview cannot
      * drift away from the printed document (Architecture.md 5.4).
      *
-     * Only three things are handled locally, because they cannot be:
+     * Only two things are handled locally, because they cannot be:
      *   - uploaded images (read with FileReader, never uploaded per keystroke)
      *   - zoom / fit
-     *   - the stretched table filler row
      */
     Alpine.data('templateEditor', (config) => ({
         endpoint: config.endpoint,
@@ -126,14 +230,14 @@ document.addEventListener('alpine:init', () => {
 
         init() {
             this.$nextTick(() => {
-                this.stretch();
+                this.measure();
                 this.fit();
             });
 
             if (document.fonts && document.fonts.ready) {
                 // Metrics change once the real fonts land; re-measure after.
                 document.fonts.ready.then(() => {
-                    this.stretch();
+                    this.measure();
                     this.fit();
                 });
             }
@@ -242,7 +346,6 @@ document.addEventListener('alpine:init', () => {
                 this.$refs.preview.innerHTML = html;
                 this.applyImages();
                 this.$nextTick(() => {
-                    this.stretch();
                     this.fit();
                 });
             } catch (error) {
@@ -405,26 +508,12 @@ document.addEventListener('alpine:init', () => {
 
         /* ---------------- metrics ---------------- */
 
-        /** Stretch the ruled table down to the page foot (prototype behaviour). */
-        stretch() {
+        /** The sheet is paginated server-side: more than one .q-page is the
+         *  only signal the editor needs that content will not fit one sheet. */
+        measure() {
             const root = this.$refs.preview;
 
-            if (!root) {
-                return;
-            }
-
-            const flow = root.querySelector('.q-flow');
-            const row = root.querySelector('[data-q-fill]');
-            const last = flow && flow.lastElementChild;
-
-            if (flow && row) {
-                const used = last ? last.offsetTop + last.offsetHeight : 0;
-                const slack = Math.floor(flow.clientHeight - used - 4);
-
-                row.querySelector('td').style.height = `${Math.max(0, slack)}px`;
-            }
-
-            this.overflow = Boolean(flow && flow.scrollHeight > flow.clientHeight + 1);
+            this.overflow = Boolean(root && root.querySelectorAll('.q-page').length > 1);
         },
 
         fit() {

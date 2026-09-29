@@ -61,6 +61,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('quotes/create/template', [QuoteController::class, 'create'])->name('quotes.create');
     Route::get('quotes/build', [QuoteController::class, 'build'])->name('quotes.build');
     Route::post('quotes/calculate', [QuoteController::class, 'calculate'])->name('quotes.calculate');
+    // Live A4 preview for the builder overlay. Declared before the resource
+    // routes so 'quotes/preview' is never read as a quote id.
+    Route::post('quotes/preview', [QuoteController::class, 'preview'])->name('quotes.preview');
 
     Route::get('quotes/{quote}/pdf', [QuotePdfController::class, 'download'])->name('quotes.pdf');
     Route::get('quotes/{quote}/pdf/view', [QuotePdfController::class, 'show'])->name('quotes.pdf.view');

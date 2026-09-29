@@ -1,22 +1,40 @@
 @use('App\Services\CalculationService')
 
 <x-app-layout :title="$quote->exists ? 'Edit Quotation '.$quote->quote_number : 'New Quotation'">
-    <x-section-header
-        :title="$quote->exists ? 'Edit Quotation' : 'New Quotation'"
-        :description="$template->name.' — '.$template->company_name"
-        back="{{ route('quotes.index') }}"
-    />
+    {{-- Prototype top: title left, Preview Quote button right (quote_builder #previewTop). --}}
+    <div class="mb-[22px] flex flex-wrap items-end justify-between gap-4">
+        <x-section-header
+            :title="$quote->exists ? 'Edit Quotation' : 'New Quotation'"
+            :description="$template->name.' — '.$template->company_name"
+            back="{{ route('quotes.index') }}"
+            class="mb-0"
+        />
+        <button
+            type="button"
+            x-on:click="$dispatch('quote-preview-open')"
+            class="inline-flex items-center justify-center gap-[7px] whitespace-nowrap rounded-[6px] border border-app-border bg-white px-4 py-[9px] text-[13px] font-semibold leading-none text-app-text transition-colors hover:bg-app-neutral-soft"
+        >
+            <x-icon name="eye" :size="16" class="shrink-0" />
+            Preview Quote
+        </button>
+    </div>
 
+    <div
+        x-data="quoteBuilder(@js($builderSeed), @js(route('quotes.preview')))"
+        x-on:quote-preview-open.window="openPreview()"
+        class="space-y-4"
+    >
     <form
         method="POST"
+        x-ref="form"
         action="{{ $quote->exists ? route('quotes.update', $quote) : route('quotes.store') }}"
-        x-data="quoteBuilder(@js($builderSeed))"
-        x-on:keydown.escape.window="if (dirty) { dirty = false }"
+        x-on:keydown.escape.window="closePreview()"
         class="space-y-4"
     >
         @csrf
         @if ($quote->exists)
             @method('PUT')
+            <input type="hidden" name="quote_id" value="{{ $quote->getKey() }}">
         @endif
 
         {{-- 1. Template --}}
@@ -27,6 +45,7 @@
             </h2>
 
             @if ($quote->exists && $quote->status->value !== 'draft')
+                <input type="hidden" name="template_id" value="{{ $template->id }}">
                 <p class="text-[13px] text-app-muted">
                     Using <span class="font-semibold">{{ $template->name }}</span>.
                     The template is locked because this quotation is {{ strtolower($quote->status->label()) }}.
@@ -247,13 +266,21 @@
         </x-card>
 
         {{-- Sticky action bar --}}
-        <div class="sticky bottom-0 flex flex-wrap items-center justify-between gap-3 rounded-[8px] border border-app-border bg-app-surface px-4 py-3 shadow-app-card">
+        <div class="sticky bottom-0 z-20 flex flex-wrap items-center justify-between gap-3 rounded-[8px] border border-app-border bg-app-surface px-4 py-3 shadow-app-card">
             <div class="text-[13px] text-app-muted">
                 Grand Total
                 <span class="ml-1 text-[16px] font-bold tabular-nums text-app-accent" x-text="money(grandTotal)">₹0.00</span>
             </div>
 
             <div class="flex flex-wrap items-center gap-2">
+                <button
+                    type="button"
+                    x-on:click="openPreview()"
+                    class="inline-flex items-center justify-center gap-[7px] whitespace-nowrap rounded-[6px] border border-app-border bg-white px-4 py-[9px] text-[13px] font-semibold leading-none text-app-text transition-colors hover:bg-app-neutral-soft"
+                >
+                    <x-icon name="eye" :size="16" class="shrink-0" />
+                    Preview Quote
+                </button>
                 <x-button :href="route('quotes.index')" variant="ghost" icon="x">Cancel</x-button>
                 <x-button type="submit" name="intent" value="draft" variant="subtle" icon="save">Save Draft</x-button>
                 <x-button type="submit" name="intent" value="generate" icon="check">
@@ -262,4 +289,52 @@
             </div>
         </div>
     </form>
+
+    {{-- ============ A4 PREVIEW OVERLAY (quote_builder #previewOverlay) ============ --}}
+    <div
+        x-show="previewOpen"
+        x-cloak
+        x-on:click.self="closePreview()"
+        class="fixed inset-0 z-[80] flex items-start justify-center overflow-y-auto bg-app-text/60 p-4 sm:p-8"
+        role="dialog"
+        aria-modal="true"
+        aria-label="Quote Preview — A4"
+    >
+        <div class="w-full max-w-[860px] overflow-hidden rounded-[8px] bg-app-surface shadow-app-sheet">
+            <div class="flex flex-wrap items-center justify-between gap-2 border-b border-app-border px-4 py-3">
+                <h3 class="flex items-center gap-2 text-[13px] font-bold text-app-text">
+                    <x-icon name="eye" :size="16" class="shrink-0" />
+                    Quote Preview — A4
+                </h3>
+                <div class="flex flex-wrap items-center gap-2">
+                    <button
+                        type="button"
+                        x-on:click="downloadPdf()"
+                        class="inline-flex items-center justify-center gap-[7px] whitespace-nowrap rounded-[6px] border border-app-border bg-white px-4 py-[9px] text-[13px] font-semibold leading-none text-app-text transition-colors hover:bg-app-neutral-soft"
+                    >
+                        <x-icon name="download" :size="16" class="shrink-0" />
+                        Download PDF
+                    </button>
+                    <button
+                        type="button"
+                        x-on:click="closePreview()"
+                        class="inline-flex items-center justify-center gap-[7px] whitespace-nowrap rounded-[6px] bg-app-accent px-4 py-[9px] text-[13px] font-semibold leading-none text-white transition-colors hover:bg-app-accent-hover"
+                    >
+                        Close Preview
+                    </button>
+                </div>
+            </div>
+
+            <p x-show="previewError" x-cloak class="border-b border-app-border bg-app-danger-soft px-4 py-2 text-[12.5px] text-app-danger" x-text="previewError"></p>
+
+            <div class="print-stage max-h-[calc(100vh-160px)] overflow-auto bg-[#e8ebf0] p-[18px]">
+                <div class="print-doc relative mx-auto" style="min-height: 1px">
+                    <div x-ref="preview">
+                        <p class="mx-auto max-w-[560px] rounded-[6px] bg-white px-4 py-6 text-center text-[13px] text-app-muted">Loading preview…</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    </div>
 </x-app-layout>

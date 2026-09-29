@@ -15,7 +15,11 @@
       q-letter  salutation + intro
       q-table   items + totals
       q-closing amount in words, terms, seal + signature, thank-you line
-      q-pagefoot company name | page count
+      q-pagefoot company name | page count   (own table row, pinned to bottom)
+
+    Pages come from App\Services\QuotationPaginator: rows fill each page, and
+    the totals + closing block sits under the last row -- or, when it does not
+    fit there, on its own final page (a page with no item rows).
 
     Expected $doc shape:
       company : name, display_name, company_gstin, tagline, address, email,
@@ -106,11 +110,15 @@
 
         <div class="q-sheet print-sheet" style="{{ $style }}" @if ($preview) data-preview-sheet @endif>
     {{-- A real <table>, not divs with display:table/table-row.
-         Dompdf only lays out table rows that are genuine <tr> inside a genuine
-         <table>; given a styled <div> it falls back to block formatting and
-         every band drifts down the page, which pushed the closing block onto a
-         second sheet. The bands inside are still divs, so the markup stays
-         close to the prototype. --}}
+         Dompdf only lays out table rows that are genuine <tr> inside a
+         genuine <table>; given a styled <div> it falls back to block formatting
+         and every band drifts down the page, which pushed the closing block onto
+         a second sheet. The bands inside are still divs, so the markup stays
+         close to the prototype.
+
+         The frame has a FIXED A4 height and two rows: the first (.q-flow) holds
+         the page content, the second (.q-foot-cell) holds the page footer and is
+         pinned to the bottom, so every page is a full A4 sheet. --}}
     <table class="q-frame">
         <tr>
             <td class="q-flow">
@@ -191,15 +199,16 @@
                 </div>
             @else
                 {{-- Continuation header, as in the prototype's contHeader(). --}}
-                <div class="q-cont-head {{ $align }}">
+                <!-- <div class="q-cont-head {{ $align }}">
                     <div class="n">{{ $company['display_name'] ?: ($company['name'] ?? 'Company') }}</div>
                     <div class="r">
                         Ref. No. <b>{{ $meta['no'] ?? '—' }}</b> &nbsp;&middot;&nbsp; continued
                     </div>
-                </div>
+                </div> -->
             @endif
 
             {{-- 6. Items --}}
+            @if ($pageItems || $page['totals'] || ! $docHasItems)
             <div class="q-table-wrap">
                 {{-- Column widths live on the cells (.w-* classes in
                      resources/css/quotation.css), not on <colgroup>: Dompdf
@@ -216,15 +225,17 @@
                         <col style="width: 30.2mm">
                         <col style="width: 39.1mm">
                     </colgroup>
-                    <thead>
-                        <tr>
-                            <th class="c w-sr">Sr. No.</th>
-                            <th class="w-desc">Item Description</th>
-                            <th class="c w-qty">Qty.</th>
-                            <th class="r w-rate">Rate (₹)</th>
-                            <th class="r w-amt">Amount (₹)</th>
-                        </tr>
-                    </thead>
+                    @if ($pageItems || ! $docHasItems)
+                        <thead>
+                            <tr>
+                                <th class="c w-sr">Sr. No.</th>
+                                <th class="w-desc">Item Description</th>
+                                <th class="c w-qty">Qty.</th>
+                                <th class="r w-rate">Rate (₹)</th>
+                                <th class="r w-amt">Amount (₹)</th>
+                            </tr>
+                        </thead>
+                    @endif
                     <tbody>
                         @forelse ($pageItems as $item)
                             <tr>
@@ -241,14 +252,8 @@
                                 </tr>
                             @endif
                         @endforelse
-
-                        {{-- Stretched by JS so the ruled table reaches the page
-                             foot, as in the prototype. Screen preview only. --}}
-                        @if ($preview && ! $page['continues'])
-                            <tr class="q-filler" data-q-fill><td></td><td></td><td></td><td></td><td></td></tr>
-                        @endif
                     </tbody>
-                    @if ($pageItems && $page['is_last'])
+                    @if ($page['totals'])
                         <tfoot>
                             <tr>
                                 <td colspan="4" class="lbl">Sub Total</td>
@@ -274,14 +279,18 @@
                     @endif
                 </table>
             </div>
+            @endif
 
-            {{-- 7. Closing, on the last page only --}}
-            @if ($docHasItems && $page['is_last'])
+            {{-- 7. Amount in words (with the totals) and the closing block --}}
+            @if ($page['totals'] || $page['closing'])
                 <div class="q-closing">
-                    <div class="q-words">
-                        Amount in words: <b>{{ $totals['words'] ?? '' }}</b>
-                    </div>
+                    @if ($page['totals'])
+                        <div class="q-words">
+                            Amount in words: <b>{{ $totals['words'] ?? '' }}</b>
+                        </div>
+                    @endif
 
+                    @if ($page['closing'])
                     <div class="q-foot">
                         <div class="q-terms">
                             <h4>Terms &amp; Conditions</h4>
@@ -334,6 +343,7 @@
                     </div>
 
                     <div class="q-thanks">Thank you for the opportunity to quote. This is a computer-generated quotation.</div>
+                    @endif
                 </div>
             @endif
 
@@ -342,12 +352,16 @@
                 <div class="q-carry">Continued on page {{ $page['n'] + 1 }}</div>
             @endif
 
-            {{-- 8. Page footer --}}
-            <div class="q-pagefoot">
-                <span>{{ $company['name'] ?? '' }}</span>
-                <span>Page {{ $page['n'] }} of {{ $page['total'] }}</span>
-            </div>
             </td>{{-- .q-flow --}}
+        </tr>
+        <tr>
+            <td class="q-foot-cell">
+                {{-- 8. Page footer, pinned to the bottom of the frame --}}
+                <div class="q-pagefoot">
+                    <span>{{ $company['name'] ?? '' }}</span>
+                    <span>Page {{ $page['n'] }} of {{ $page['total'] }}</span>
+                </div>
+            </td>{{-- .q-foot-cell --}}
         </tr>
     </table>{{-- .q-frame --}}
     </div>{{-- .q-sheet --}}

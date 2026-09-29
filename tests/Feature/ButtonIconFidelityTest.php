@@ -101,9 +101,17 @@ class ButtonIconFidelityTest extends TestCase
             ->implode("\n");
 
         $this->assertNotSame('', $css, 'No compiled CSS found — run npm run build.');
-        $this->assertStringContainsString('.print-sheet', $css);
+
+        // 247c61b moved the sheet's print reset from the markup's .print-sheet
+        // hook onto .q-sheet, and the per-sheet page break from .print-sheet
+        // onto the .q-page wrapper QuotationPaginator emits. Both classes are
+        // still on the markup, so assert the rules that are actually shipped
+        // instead of the class that was renamed away.
+        $this->assertStringContainsString('@media print', $css);
         $this->assertStringContainsString('.print-stage', $css);
         $this->assertStringContainsString('.no-print', $css);
+        $this->assertStringContainsString('.q-sheet', $css);
+        $this->assertStringContainsString('.q-page', $css);
     }
 
     public function test_every_icon_named_by_a_view_exists_in_the_registry(): void

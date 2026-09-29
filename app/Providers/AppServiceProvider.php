@@ -9,6 +9,7 @@ use App\Policies\ClientPolicy;
 use App\Policies\QuotePolicy;
 use App\Policies\QuoteTemplatePolicy;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\View;
 use Illuminate\Support\ServiceProvider;
 
@@ -27,6 +28,11 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        // MySQL (utf8mb4) with older row format hits "Specified key was too
+        // long" on unique email columns. Cap default string length so fresh
+        // `migrate` works on WAMP/MySQL out of the box.
+        Schema::defaultStringLength(191);
+
         // Authorization is enforced through policies, never ad hoc in
         // controllers (rules.md section 6). Quote policies arrive in Phase 4.
         Gate::policy(Client::class, ClientPolicy::class);

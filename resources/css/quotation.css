@@ -51,14 +51,40 @@
     padding: 0;
 }
 
-/* Line heights are absolute (pt), never unitless multipliers.
-   Dompdf largely ignores a multiplier and falls back to the font's natural
-   line box, which for Hind is roughly 3em: every table row came out ~1.5x
-   taller in the PDF than in the browser, and the closing block was pushed
-   onto a second page. Measured with resources/views/pdf/quote.blade.php:
-     line-height: 1.45  -> 11.23mm row
-     line-height: 18.13pt -> 9.83mm row  (honoured)
-   Stating the same values in pt makes both engines agree. 1px = 0.75pt. */
+/* ---------------------------------------------------------------------------
+   LINE-HEIGHT CALIBRATION -- the reason every value below looks "inflated".
+
+   Dompdf does not honour a declared line-height. It replaces it with the
+   user agent's DEFAULT_LINE_HEIGHT_RATIO (1.1) multiplied by the font's own
+   natural height:
+
+       FrameDecorator/Text.php :: get_content_box()
+           ($style->line_height / $font_size) * $fontMetrics->getFontHeight(...)
+
+   and FontMetrics::getFontHeight() is (ascender - descender) * size *
+   fontHeightRatio (Adapter/CPDF.php). For Hind that is
+   (0.950 + 0.300) * 1.1 = 1.375 -- so Dompdf renders every line box 37.5%
+   taller than the browser, whatever the stylesheet says. That single factor
+   is what made the PDF disagree with the A4 preview: page 1 of the approved
+   sample (QT-2026-00002) ends at 181mm in the PDF but at 155mm in Chrome.
+
+   The fix has to make BOTH engines obey the declared length:
+
+     1. Dompdf: set 'fontHeightRatio' to 1 / 1.25 = 0.8 in PdfService. The
+        line box then becomes (line_height / size) * (1.25 * 0.8) * size =
+        line_height -- exactly what the stylesheet asked for. The glyph
+        baseline is NOT affected: Adapter/CPDF.php::get_font_baseline()
+        divides the ratio back out, so text stays where it was.
+     2. Browser: declare line-heights that are 1.375x the "design" value, so
+        Chrome's own (exact) line box is as tall as the one Dompdf used to
+        paint for the approved sample.
+
+   FACTOR = 1.375, and every line-height in this file is the design value
+   (px x 0.75 = pt) times that factor. Do not "tidy" these numbers: they are
+   measured, not chosen -- PdfLayoutScratchTest / storage/tmp/cmp.py compare
+   the browser print, the Dompdf PDF and the approved sample band by band.
+   PDF-only overrides do NOT belong here; both engines read this file.
+   ------------------------------------------------------------------------- */
 .q-sheet {
     --ink: #1f2f6b;
     --ink-2: #3b4a82;
@@ -68,23 +94,30 @@
     --stamp: #5140b0;
 
     width: 210mm;
-    min-height: 297mm;
+    /* FIXED A4 height. Every sheet is a real A4 page (297mm), whatever the
+       amount of content on it; QuotationPaginator moves rows to the next
+       sheet when a page is full.
+       296mm, not 297mm: the 1mm slack stops Dompdf from spilling a rounding
+       error onto a blank extra page. If a blank page still appears in the
+       PDF, lower this to 295mm. */
+    height: 296mm;
     margin: 0 auto;
-    /* 7mm, not 9mm. The sheet carries the document's fixed overhead -- letter
+    /* 7mm padding. The sheet carries the document's fixed overhead -- letter
        head, client block, terms, signature -- and that block is TALLER in
        Dompdf than in the browser (Dompdf reserves a full font line box per
-       element, the browser does not). At 9mm the two-page-per-A4 arithmetic
-       left no slack, so a two-item quotation whose content measured 299mm
-       against a 272mm frame was split and produced two BLANK pages. The 2mm
-       a side buys 4mm of frame and keeps both engines identical, since this
-       is the shared stylesheet. */
+       element, the browser does not), so both engines must read the SAME
+       padding from this shared stylesheet. */
     padding: 7mm;
     background: #fff;
     box-shadow: 0 1px 2px rgb(15 23 42 / 0.08), 0 12px 32px rgb(15 23 42 / 0.16);
     font-family: 'Hind', 'Segoe UI', Arial, sans-serif;
     font-size: 13px;
-    /* 1.45 x 13px = 18.85px = 14.14pt */
-    line-height: 14.14pt;
+    /* The approved sample (QT-2026-00002) shows 22.4px (16.775pt) between two
+       inherited text baselines: its body line box is 12.2 x 1.375, where
+       12.2pt was the PDF-only override this file now owns. With
+       fontHeightRatio = 0.8 (see PdfService) Dompdf prints exactly the declared
+       length, so both engines produce the sample's 22.4px line box. 1px = 0.75pt. */
+    line-height: 16.775pt;
     color: var(--paper-text);
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
@@ -93,27 +126,23 @@
 /* The frame is a TABLE, not a flex column.
    Dompdf maps `display: flex` to `display: block` (Css/Style.php::_compute_display),
    which stacked every band vertically in the PDF. CSS tables are supported by
-   both engines and lay out identically, so the sheet now uses tables for all
-   of its horizontal structure. The height is fixed (not min-height) so the
-   footer row is pushed to the foot of the page exactly as the prototype does. */
+   both engines and lay out identically, so the sheet uses tables for all of
+   its horizontal structure.
+
+   The frame has a FIXED A4 height and two rows:
+     row 1 (.q-flow)      all the page content, top-aligned
+     row 2 (.q-foot-cell) the page footer, pinned to the bottom of the frame
+   A quotation needing more than one sheet is split by QuotationPaginator into
+   one .q-page per sheet; the .q-page break rules below paginate the screen
+   print and the PDF. */
 .q-frame {
     /* Real <table> markup: Dompdf only lays out genuine table rows inside a
        genuine table. A styled <div> silently falls back to block formatting
        and the bands drift down the page. */
     width: 184mm;
-    /* EXACT page arithmetic, because Dompdf page-breaks on overflow alone.
-         sheet padding        7mm x2                     = 14mm
-         frame margin         4px x2 = 8px = 6.35mm
-         available for frame  297 - 14 - 6.35            = 276.65mm
-       The frame is `box-sizing: border-box` (set on .q-sheet *), so its 2px
-       border is INSIDE that height and must not be subtracted again. An
-       earlier version did subtract it, giving 269.475mm and throwing away
-       usable page for no reason.
-
-       The value has to be exact. `height` on a table is only a MINIMUM: when
-       the content is taller, the table grows and the sheet spills past the
-       297mm page, which Dompdf resolves by splitting -- producing the blank
-       pages and half-empty first pages this was meant to prevent. */
+    /* Fixed A4 frame. 296mm sheet - 2 x 7mm padding = 282mm available; the
+       frame (276.65mm) + its 4px margins (~2.1mm) fit inside with room to
+       spare. CONTENT_H in QuotationPaginator is derived from this height. */
     height: 276.65mm;
     border: 2px solid var(--ink);
     border-collapse: separate;
@@ -122,13 +151,12 @@
 }
 
 /* The reference frame is a double rule: a 2px border plus a hairline outline
-   3px outside it. `outline` is exactly right for that -- it paints outside the
-   box without adding a single pixel of layout, which matters here because the
-   page arithmetic above has no slack at all.
+   3px outside it. `outline` paints outside the box without adding a single
+   pixel of layout.
 
    Dompdf does not implement `outline`, so this is scoped to the screen: in the
    PDF the frame shows its 2px border alone. Reintroducing the second rule as a
-   border or box-shadow would break the exact 297mm total. */
+   border or box-shadow would change the exact frame arithmetic. */
 @media screen {
     .q-frame {
         outline: 1px solid var(--ink);
@@ -136,26 +164,35 @@
     }
 }
 
-/* The single cell holds the whole page. Its content is top-aligned; the fixed
-   frame height does the rest. */
+/* Row 1: the page content. Top-aligned, fixed height, so the footer row
+   below always sits at the bottom of the frame.
+   276.65mm frame - 2 x 2px border (1.06mm) - footer row (~8.7mm) = ~266.9mm.
+   On a table cell `height` behaves as a minimum, so an over-full page grows
+   rather than clipping -- QuotationPaginator's SAFETY margin is what keeps
+   pages from ever reaching that point. */
 .q-flow {
+    height: 266.9mm;
     padding: 0;
     border: none;
     vertical-align: top;
 }
 
+/* Row 2: the page footer, pinned to the bottom of the frame. */
+.q-foot-cell {
+    padding: 0;
+    border: none;
+    vertical-align: bottom;
+}
+
 /* --- page wrapper ---------------------------------------------------------
-   One .q-page per A4 sheet. The screen stacks them, the browser prints one
-   per page, and Dompdf breaks on the same element — so the preview, the
-   printed page and the PDF are the same document. Page breaks live here now
-   rather than on .q-sheet, which would also fire in the PDF where each .q-page
-   is already a full page.
+   One .q-page per A4 sheet from QuotationPaginator. The screen stacks them;
+   the browser prints one per page and Dompdf breaks on the same element --
+   so the preview, the printed page and the PDF are the same document.
    ------------------------------------------------------------------------- */
 .q-page {
     display: block;
-    /* The browser prints one .q-page per sheet. In the PDF each .q-page is
-       already a full A4 sheet, so the break is driven by the fixed height
-       below rather than by break-after (which would add a blank page). */
+    break-after: page;
+    page-break-after: always;
     break-inside: avoid;
     page-break-inside: avoid;
 }
@@ -178,11 +215,10 @@
     padding: 0 0 8px;
 }
 
-/* NOTE: no `overflow: hidden` on .q-sheet or .q-flow. The prototype pins both
-   to 297mm because its JavaScript paginates by cloning sheets. Here one
-   stylesheet serves Dompdf as well; QuotationPaginator splits the items so a
-   page never exceeds the fixed .q-frame height, and clipping would silently
-   lose content rather than reveal a mistake. */
+/* NOTE: no `overflow: hidden` on .q-sheet or .q-flow. One stylesheet serves
+   Dompdf as well; QuotationPaginator splits the items so a page never exceeds
+   the A4 sheet, and clipping would silently lose content rather than reveal
+   a mistake. */
 
 /* --- top strip ------------------------------------------------------- */
 /* Nested tables use `width: 100%`.
@@ -222,10 +258,10 @@
     text-align: center;
 }
 .q-strip b { color: var(--paper-text); font-weight: 600; }
-.q-strip .q-mob { text-align: right; line-height: 13.5pt; }
+.q-strip .q-mob { text-align: right; line-height: 18.56pt; }
 
 /* --- letterhead ------------------------------------------------------ */
-.q-head { text-align: center; padding: 14px 20px 11px; }
+.q-head { text-align: center; padding: 10px 20px 8px; }
 .q-brand { display: table; margin: 0 auto; }
 .q-brand > * { display: table-cell; vertical-align: top; }
 .q-brand > * + * { padding-left: 14px; }
@@ -233,8 +269,8 @@
 .q-company {
     font-family: 'Zilla Slab', Rockwell, Georgia, serif;
     font-weight: 700;
-    font-size: 40px;
-    line-height: 1;
+    font-size: 30px;
+    line-height: 1.375;
     letter-spacing: 0.03em;
     color: var(--ink);
 }
@@ -250,8 +286,8 @@
     display: block;
     text-align: center;
     font-size: 13px;
-    line-height: 1;
-    margin: 9px auto 7px;
+    line-height: 1.375;
+    margin: 6px auto 4px;
     max-width: 540px;
     border-top: 3px double var(--ink);
 }
@@ -299,20 +335,27 @@
    "rahul.codexmatrix@gmail.com" is a single unbreakable token; inside a
    table-cell it would otherwise render past the cell and sit on top of the
    frame rule, which is exactly the "text touching the line" defect. */
-.q-parties { display: table; table-layout: fixed; width: 100%; padding: 11px 16px 4px; }
+.q-parties { display: table; table-layout: fixed; width: 100%; padding: 8px 16px 2px; }
 .q-parties > div { display: table-cell; vertical-align: top; padding-right: 20px; overflow-wrap: break-word; word-break: break-word; }
-.q-parties > :first-child { width: 58%; }
-.q-parties > :last-child { width: 42%; padding-right: 0; }
+.q-parties > :first-child { width: 62%; }
+.q-parties > :last-child { width: 38%; padding-right: 0; }
+/* The 62/38 split is headroom, not a design change: Chrome measures the same
+   address about 4% wider than Dompdf does (glyph advances vs kerning), so at
+   58/42 the client's address wrapped onto a second line in the preview and on
+   the printed page while the PDF -- and the approved sample -- kept it on one.
+   Widening the left column by 4% removes the wrap in both engines; the band's
+   visible geometry is unchanged, because the address is left-aligned and the
+   contact block on the right is right-aligned. */
 .q-to-label { font-size: 12px; color: var(--ink-2); margin-bottom: 2px; }
 .q-to { padding-left: 34px; }
-.q-to .name { font-size: 16px; font-weight: 700; line-height: 15.6pt; }
+.q-to .name { font-size: 16px; font-weight: 700; line-height: 21.45pt; }
 .q-to p { font-size: 12.5px; color: #3a4260; margin-top: 1px; }
 .q-side { font-size: 12px; color: var(--ink-2); vertical-align: bottom !important; }
-.q-side div { text-align: right; line-height: 16.2pt; }
+.q-side div { text-align: right; line-height: 22.28pt; }
 .q-side b { color: var(--paper-text); font-weight: 600; }
 
 /* --- intro ------------------------------------------------------------ */
-.q-letter { padding: 6px 16px 10px; font-size: 12.5px; color: #3a4260; }
+.q-letter { padding: 4px 16px 6px; font-size: 12.5px; color: #3a4260; }
 .q-letter .salute { color: var(--paper-text); margin-bottom: 2px; }
 .q-letter p { text-indent: 34px; }
 .q-fill {
@@ -328,7 +371,7 @@
 .q-sample { background: rgba(255, 214, 102, 0.28); border-radius: 2px; }
 
 /* --- items table ------------------------------------------------------ */
-.q-table-wrap { padding: 8px 10px 0; }
+.q-table-wrap { padding: 6px 10px 0; }
 .q-table {
     /* FIXED width, in mm, not 100%.
        The frame is a fixed 184mm table, so a percentage width here has to be
@@ -350,11 +393,10 @@
        35.8mm: the intended 8/45/8/17/22 split. */
     table-layout: auto;
     font-size: 12.5px;
-    /* Explicit absolute line-height. 1.45 x 12.5px = 18.125px = 13.59pt
-       (1px = 0.75pt). The table is the tallest block on the sheet, and with
-       the inherited multiplier Dompdf made every row ~1.5x taller than the
-       browser, which is what forced a second PDF page. */
-    line-height: 13.59pt;
+    /* Design value 1.45 x 12.5px = 18.125px = 13.59pt; x 1.375 = 18.69pt.
+       The table is the tallest block on the sheet, so this one line-height
+       is most of the "PDF is 26mm taller than the preview" defect. */
+    line-height: 18.69pt;
 }
 
 /* COLUMN WIDTHS -- declared on the header cells, NOT on <colgroup>.
@@ -383,25 +425,24 @@
        overflowed the A4 page by ~8mm and pushed Terms onto a second sheet;
        the 1px saving per row is imperceptible and keeps the preview and the
        PDF in step. */
-    padding: 6px 10px;
+    padding: 5px 10px;
     text-align: left;
     border-left: 1px solid rgb(255 255 255 / 25%);
     white-space: nowrap;
     /* Stated on the cells as well as the table: Dompdf does not reliably
        apply an inherited line-height to table cells and falls back to the
-       font's natural line box, making every row ~3mm too tall. */
-    line-height: 12.6pt;
+       font's natural line box. 12.6pt x 1.375 = 17.33pt. */
+    line-height: 17.33pt;
 }
 .q-table th:first-child { border-left: none; }
 .q-table td {
-    padding: 6px 10px;
+    padding: 5px 10px;
     vertical-align: top;
     border-left: 1px solid var(--ink);
-    line-height: 13.59pt;
+    line-height: 18.69pt;
 }
 .q-table td:first-child { border-left: none; }
 .q-table tbody tr + tr td { border-top: 1px dotted var(--ink-line); }
-.q-table tbody tr.q-filler td { border-top: none; padding: 0; }
 .q-table .c { text-align: center; }
 .q-table .r { text-align: right; font-variant-numeric: tabular-nums; }
 .q-table td.desc { font-weight: 600; }
@@ -414,14 +455,14 @@
    Every band shares the 16px gutter so the left and right margins of the
    sheet read as one straight line. The amount-in-words line was 12px, which
    made the two edges visibly ragged. */
-.q-closing { padding-top: 7px; page-break-inside: avoid; }
+.q-closing { padding-top: 4px; page-break-inside: avoid; }
 .q-words { font-size: 12px; color: #3a4260; padding: 0 16px; overflow-wrap: break-word; }
 .q-words b { color: var(--paper-text); font-weight: 600; }
-.q-foot { display: table; table-layout: fixed; width: 100%; padding: 8px 16px; }
+.q-foot { display: table; table-layout: fixed; width: 100%; padding: 6px 16px; }
 .q-terms { display: table-cell; vertical-align: top; width: 57%; padding-right: 20px; }
 .q-terms h4 { font-size: 13px; font-weight: 700; color: var(--ink); margin-bottom: 3px; }
 .q-terms ol { margin: 0; padding-left: 18px; }
-.q-terms li { font-size: 12px; color: #3a4260; line-height: 13.2pt; padding-left: 2px; }
+.q-terms li { font-size: 12px; color: #3a4260; line-height: 15.4pt; padding-left: 2px; }
 .q-terms li.key { color: var(--paper-text); font-weight: 600; }
 .q-sign { display: table-cell; vertical-align: top; width: 43%; text-align: center; }
 .q-sign .for { font-size: 12.5px; color: var(--ink-2); }
@@ -431,14 +472,14 @@
    The slot must be TALLER than the seal it holds. At 100px it held a 106px
    seal, so the slot silently grew by 6px and the closing block with it; both
    are sized together below. */
-.q-stamp-slot { height: 84px; display: block; text-align: center; }
+.q-stamp-slot { height: 72px; display: block; text-align: center; }
 .q-stamp-slot > img,
 .q-stamp-slot > .q-stamp,
 .q-stamp-slot > .q-stamp-empty { display: inline-block; vertical-align: middle; }
-.q-stamp-img { max-width: 84px; max-height: 84px; object-fit: contain; opacity: 0.9; }
-.q-sig-img { max-width: 150px; max-height: 56px; object-fit: contain; mix-blend-mode: multiply; }
+.q-stamp-img { max-width: 72px; max-height: 72px; object-fit: contain; opacity: 0.9; }
+.q-sig-img { max-width: 130px; max-height: 48px; object-fit: contain; mix-blend-mode: multiply; }
 .q-sign .auth { border-top: 1px solid var(--ink-2); display: inline-block; min-width: 180px; padding-top: 4px; font-size: 12.5px; font-weight: 600; }
-.q-sign .person { font-size: 12px; color: #3a4260; margin-top: 2px; line-height: 12.6pt; }
+.q-sign .person { font-size: 12px; color: #3a4260; margin-top: 2px; line-height: 17.33pt; }
 .q-sign .person b { color: var(--paper-text); font-weight: 600; display: block; }
 .q-thanks { text-align: center; font-size: 10.5px; color: #7a819c; padding: 0 12px 2px; }
 
@@ -446,8 +487,8 @@
    without inline SVG (see the note at the top of this file). */
 .q-stamp {
     position: relative;
-    width: 82px;
-    height: 82px;
+    width: 70px;
+    height: 70px;
     color: var(--stamp);
     opacity: 0.82;
     border: 2.4px solid currentColor;
@@ -459,15 +500,15 @@
 .q-stamp::before {
     content: '';
     position: absolute;
-    top: 9px;
-    left: 9px;
-    width: 84px;
-    height: 84px;
+    top: 7px;
+    left: 7px;
+    width: 72px;
+    height: 72px;
     border: 0.8px solid currentColor;
     border-radius: 50%;
 }
-.q-stamp-ring { font-size: 7.5px; font-weight: 700; letter-spacing: 0.02em; line-height: 7.31pt; padding-top: 20px; }
-.q-stamp-role { font-size: 8px; font-weight: 700; letter-spacing: 0.06em; line-height: 9pt; }
+.q-stamp-ring { font-size: 7.5px; font-weight: 700; letter-spacing: 0.02em; line-height: 10.05pt; padding-top: 14px; }
+.q-stamp-role { font-size: 8px; font-weight: 700; letter-spacing: 0.06em; line-height: 12.38pt; }
 .q-stamp-rule { width: 46px; margin: 2px auto; border-top: 0.8px solid currentColor; }
 .q-stamp-empty {
     width: 96px;
@@ -480,6 +521,8 @@
 }
 
 /* --- page footer ------------------------------------------------------
+   Lives in its own table row (.q-foot-cell), so it sits at the bottom of
+   the fixed-height frame on every page.
    Gutter raised from 14px to the sheet-wide 16px so the footer's text lines
    up with every band above it, and the right-hand cell wraps rather than
    pushing "Page n of m" through the frame rule. */

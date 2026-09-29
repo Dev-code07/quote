@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Models\Client;
 use App\Models\Quote;
 use App\Models\QuoteItem;
 use App\Models\QuoteTemplate;
@@ -107,9 +108,6 @@ class QuotationDocumentService
     }
 
     /**
-     * Format a date the way the A4 document shows it.
-     */
-    /**
      * Build the printable document for a saved quote.
      *
      * Reads ONLY the quote's own columns and snapshots, never the live client
@@ -188,6 +186,139 @@ class QuotationDocumentService
         ];
     }
 
+    /**
+     * Preview doc from UNSAVED builder input (live overlay). Lenient:
+     * never validates, never 422s, never mutates. Half-typed rows render.
+     */
+    public function fromUnsavedInput(QuoteTemplate $template, ?Client $client, array $input, string $number): array
+    {
+        $totals = app(CalculationService::class)->compute(
+            $this->previewLineItems($input['items'] ?? []),
+            $input['discount_amount'] ?? 0,
+            $input['gst_rate'] ?? $template->default_gst_rate,
+        );
+
+        $name = $client?->name;
+        if (! is_string($name) || trim($name) === '') {
+            $typed = $input['client_name'] ?? null;
+            $name = is_string($typed) && trim($typed) !== '' ? trim($typed) : '—';
+        }
+
+        $enquiryCarbon = null;
+        if (is_string($input['enquiry_date'] ?? null) && trim($input['enquiry_date']) !== '') {
+            try {
+                $enquiryCarbon = \Carbon\Carbon::parse($input['enquiry_date']);
+            } catch (\Throwable) {
+                $enquiryCarbon = null;
+            }
+        }
+
+        $introRaw = is_string($input['terms']['intro'] ?? null) && trim($input['terms']['intro']) !== ''
+            ? $input['terms']['intro']
+            : $template->intro_message;
+
+        $extraRaw = $input['terms']['extra'] ?? $template->extra_terms;
+        $extra = is_array($extraRaw)
+            ? array_values(array_filter(array_map('trim', $extraRaw), fn ($l) => $l !== ''))
+            : TemplateTokens::lines(is_string($extraRaw) ? $extraRaw : null);
+
+        $title = is_string($input['doc_title'] ?? null) && trim($input['doc_title']) !== ''
+            ? trim($input['doc_title'])
+            : ($template->doc_title ?? 'QUOTATION');
+
+        return [
+            'accent' => $template->inkColours(),
+            'align' => $template->header_alignment?->css() ?? 'center',
+            'doc_title' => $title,
+            'company' => [
+                'name' => $template->company_name,
+                'display_name' => $template->displayName(),
+                'company_gstin' => $template->company_gstin,
+                'tagline' => $template->tagline,
+                'address' => $template->address,
+                'email' => $template->email,
+                'mobile_1' => $template->mobile_1,
+                'mobile_2' => $template->mobile_2,
+                'stamp_place' => $template->stamp_place,
+                'logo_url' => $template->logoUrl(),
+                'signature_url' => $template->signatureUrl(),
+                'stamp_url' => $template->companyStampUrl(),
+                'generated_seal' => (bool) $template->use_generated_seal,
+                'authorized_person' => $template->authorized_person,
+                'designation' => $template->designation,
+            ],
+            'client' => [
+                'name' => $name,
+                'address' => $client?->address,
+                'gstin' => $client?->gstin,
+                'email' => $client?->email,
+                'phone' => $client?->phone,
+            ],
+            'meta' => [
+                'no' => $number,
+                'date' => $this->previewDate($input['quote_date'] ?? null) ?? now()->format('d/m/Y'),
+                'valid' => $this->previewDate($input['valid_until'] ?? null) ?? '—',
+                'enquiry_no' => is_string($input['enquiry_no'] ?? null) ? $input['enquiry_no'] : null,
+                'enquiry_date' => $this->previewDate($input['enquiry_date'] ?? null) ?? '—',
+            ],
+            'items' => $totals['items'],
+            'totals' => [
+                'subtotal' => $totals['subtotal'],
+                'discount' => $totals['discount'],
+                'gst_rate' => $totals['gst_rate'],
+                'gst_amount' => $totals['gst_amount'],
+                'grand_total' => $totals['grand_total'],
+                'words' => app(AmountInWordsService::class)->convert($totals['grand_total']),
+            ],
+            'terms' => [
+                'intro' => TemplateTokens::render($introRaw, $name === '—' ? null : $name, is_string($input['enquiry_no'] ?? null) ? $input['enquiry_no'] : null, $enquiryCarbon),
+                'delivery' => $this->previewString($input['terms']['delivery'] ?? null) ?? $template->delivery_period,
+                'warranty' => $this->previewString($input['terms']['warranty'] ?? null) ?? $template->warranty,
+                'validity' => $this->previewString($input['terms']['validity'] ?? null) ?? $template->validity_text,
+                'extra' => $extra,
+                'notes' => $this->previewString($input['terms']['notes'] ?? null) ?? $template->notes,
+            ],
+        ];
+    }
+
+    private function previewLineItems(mixed $items): array
+    {
+        if (! is_array($items)) {
+            return [];
+        }
+
+        return array_values(array_map(fn (mixed $row): array => [
+            'description' => is_array($row) ? (string) ($row['description'] ?? '') : '',
+            'qty' => is_array($row) ? ($row['qty'] ?? 0) : 0,
+            'rate' => is_array($row) ? ($row['rate'] ?? 0) : 0,
+        ], $items));
+    }
+
+    private function previewDate(mixed $value): ?string
+    {
+        if (! is_string($value) || trim($value) === '') {
+            return null;
+        }
+
+        try {
+            return \Carbon\Carbon::parse($value)->format('d/m/Y');
+        } catch (\Throwable) {
+            return null;
+        }
+    }
+
+    private function previewString(mixed $value): ?string
+    {
+        if (! is_string($value) || trim($value) === '') {
+            return null;
+        }
+
+        return $value;
+    }
+
+    /**
+     * Format a date the way the A4 document shows it.
+     */
     public function date(?CarbonInterface $date): string
     {
         return $date?->format('d/m/Y') ?? '—';
